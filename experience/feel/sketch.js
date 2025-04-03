@@ -3,7 +3,7 @@ let poses = [];
 let words = ["I", "see", "the", "rise", "in", "the", "mirror", "Take", "my", "hand", "i", "can", "help", "you", "to", "find", "ourselves", "in", "this", "limbo", "And", "now", "i", "can", "go", "forget", "it", "detail", "When", "i", "falling", "down", "i", "run", "away", "in", "compton", "I", "was", "so", "far", "in", "my", "whole", "map", "Give", "me", "love", "hold", "me", "closer", "say", "my", "love", "until", "a", "better", "times", "No matter what a kinda feeling inside me", "What i know in this world in an dark light tend", "Da dee Da dee Da dee day", "I can dying dying day", "If i cannot see your face again", "And shape of natty fance", "On the moon", "Please dot rules", "Our mummies", "In this room", "Are you stressed In a bloody lips", "Looking for your side of list", "Hungry kiss", "When a tingle hapinness. God bless!", "You know what it is", "Are you come for this?", "You know what it is", "Are you come for this?"];
 let positionedWords = [];
 let video;
-
+// sktech link: https://editor.p5js.org/mwang17/sketches/Z7x5cJ-G7
 // TODO: emphasize person's countour
 // TODO: improve text display/sticking
 // TODO: display still object / swing
