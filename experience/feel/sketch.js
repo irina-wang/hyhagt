@@ -4,6 +4,11 @@ let words = ["I", "see", "the", "rise", "in", "the", "mirror", "Take", "my", "ha
 let positionedWords = [];
 let video;
 
+// TODO: emphasize person's countour
+// TODO: improve text display/sticking
+// TODO: display still object / swing
+// TODO: explore shake-off effects
+
 function setup() {
   createCanvas(640, 480);
   video = createCapture(VIDEO);
