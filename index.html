@@ -26,6 +26,7 @@
             z-index: 1;
         }
         
+        /* Vertical falling text style */
         .memory {
             position: absolute;
             color: rgba(255, 245, 220, 0.9);
@@ -43,43 +44,62 @@
             transition: all 0.3s ease-out;
             transform-origin: center center;
             backface-visibility: hidden;
+            padding: 5px;
         }
-        
+
+        /* Horizontal box style when hovered */
         .memory:hover, .memory.active {
             writing-mode: horizontal-tb;
-            transform: scale(1.1) translateY(-10px);
+            white-space: normal;
+            max-width: 280px;
+            max-height: 160px;
+            overflow-y: auto;
+            padding: 15px;
+            border-radius: 10px;
+            background: rgba(15, 25, 45, 0.8);
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
+            transform: scale(1.05);
             z-index: 10;
         }
-        
+
+        .memory::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .memory::-webkit-scrollbar-thumb {
+            background: rgba(150, 130, 100, 0.5);
+            border-radius: 3px;
+        }
+
         .memory-actions {
             display: none;
-            position: absolute;
-            z-index: 20;
             flex-direction: column;
-            gap: 5px;
-            pointer-events: none;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 12px;
         }
-        
+
         .memory:hover .memory-actions,
         .memory.active .memory-actions {
             display: flex;
         }
-        
+
         .memory-btn {
-            background: rgba(10, 20, 40, 0.9);
+            background: rgba(20, 40, 80, 0.8);
             color: #fff9e6;
             border: 1px solid rgba(150, 130, 100, 0.5);
             border-radius: 5px;
-            padding: 3px 8px;
-            font-size: 14px;
+            padding: 6px 12px;
+            font-size: 15px;
             font-family: 'Patrick Hand', cursive;
             cursor: pointer;
             transition: all 0.2s;
-            pointer-events: auto;
+            min-width: 70px;
+            text-align: center;
         }
-        
+
         .memory-btn:hover {
-            background: rgba(20, 40, 80, 0.9);
+            background: rgba(30, 50, 90, 0.9);
             transform: scale(1.05);
         }
         
@@ -96,11 +116,11 @@
             z-index: 100;
             border: 1px solid rgba(150, 130, 100, 0.3);
             box-shadow: 0 0 30px rgba(150, 130, 100, 0.2);
-            max-width: 80%;
+            width: 300px;
         }
         
         #prompt h2 {
-            font-size: 32px;
+            font-size: 28px;
             margin-bottom: 15px;
             color: #fff9e6;
             text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
@@ -108,15 +128,17 @@
         }
         
         #memory-input {
-            margin-top: 15px;
-            padding: 12px 15px;
-            width: 250px;
+            margin: 15px auto 0;
+            padding: 10px 15px;
+            width: calc(100% - 30px);
             border-radius: 8px;
             border: 1px solid rgba(150, 130, 100, 0.5);
             background: rgba(20, 30, 50, 0.7);
             color: #fff9e6;
-            font-size: 18px;
+            font-size: 16px;
             font-family: 'Patrick Hand', cursive;
+            display: block;
+            box-sizing: border-box;
         }
         
         #color-picker {
@@ -131,11 +153,13 @@
             text-align: center;
             color: #fff;
             z-index: 200;
+            width: 300px;
         }
 
         #color-picker input {
-            margin-top: 10px;
+            margin: 10px auto;
             width: 100%;
+            display: block;
         }
 
         .rain {
@@ -220,8 +244,8 @@
     <div id="color-picker">
         <h3>Choose a Shade</h3>
         <input type="range" id="memory-color" min="0" max="10" step="0.1" value="5">
-        <div id="color-preview" style="margin-top: 10px; width: 50px; height: 20px; background: rgb(0, 128, 128); margin: 10px auto;"></div>
-        <button onclick="confirmColor()" style="padding: 5px 15px; background: rgba(20, 30, 50, 0.7); color: #fff9e6; border: 1px solid rgba(150, 130, 100, 0.5); border-radius: 5px; cursor: pointer;">Confirm</button>
+        <div id="color-preview" style="margin: 10px auto; width: 50px; height: 20px; background: rgb(0, 128, 128);"></div>
+        <button onclick="confirmColor()" style="padding: 5px 15px; background: rgba(20, 30, 50, 0.7); color: #fff9e6; border: 1px solid rgba(150, 130, 100, 0.5); border-radius: 5px; cursor: pointer; margin-top: 10px;">Confirm</button>
     </div>
     
     <div id="music-control" title="Toggle rain sound">
@@ -251,7 +275,6 @@
         let animationFrameIds = [];
         let isMusicPlaying = false;
         let pendingMemory = '';
-        let activeMemory = null;
         let cleanupRain = () => {};
 
         // Initialize
@@ -270,7 +293,6 @@
             
             memoryColorInput.addEventListener('input', updateColorPreview);
             
-            // Click outside color picker to close
             document.addEventListener('click', (e) => {
                 if (!colorPicker.contains(e.target) && e.target !== memoryInput) {
                     colorPicker.style.display = 'none';
@@ -372,15 +394,19 @@
             const memory = document.createElement('div');
             memory.className = 'memory';
             
-            if (typeof memoryData === 'string') {
-                memory.textContent = memoryData;
-                memory.style.color = 'rgba(255, 245, 220, 0.9)';
-            } else {
-                memory.textContent = memoryData.text;
+            // Create content container
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'memory-content';
+            
+            // Format text
+            let displayText = typeof memoryData === 'string' ? memoryData : memoryData.text;
+            contentDiv.textContent = displayText;
+            
+            if (typeof memoryData !== 'string') {
                 memory.style.color = memoryData.color;
                 memory.dataset.id = memoryData.id;
             }
-            
+
             // Create action buttons
             const actionsDiv = document.createElement('div');
             actionsDiv.className = 'memory-actions';
@@ -403,36 +429,29 @@
             
             actionsDiv.appendChild(feelBtn);
             actionsDiv.appendChild(hearBtn);
+            
+            memory.appendChild(contentDiv);
             memory.appendChild(actionsDiv);
             
-            // Initial position
-            const startX = Math.random() * window.innerWidth;
+            // Initial position - start above the viewport
+            const startX = Math.random() * (window.innerWidth - 100);
             memory.style.left = `${startX}px`;
-            memory.style.top = `-${memory.textContent.length * 30}px`;
+            memory.style.top = `-${displayText.length * 2}px`; // Adjusted starting position
             
             container.appendChild(memory);
             
             // Animation state
             const state = {
-                yPos: -memory.textContent.length * 30,
+                yPos: -displayText.length * 2,
                 xPos: startX,
                 speed: 1 + Math.random() * 2,
                 hovered: false,
-                pinned: false,
-                mouseX: 0,
-                mouseY: 0
+                pinned: false
             };
             
-            // Mouse tracking
-            memory.addEventListener('mousemove', (e) => {
-                state.mouseX = e.clientX;
-                state.mouseY = e.clientY;
-                updateButtonPosition(memory, actionsDiv, state);
-            });
-            
+            // Mouse events
             memory.addEventListener('mouseenter', () => {
                 state.hovered = true;
-                updateButtonPosition(memory, actionsDiv, state);
             });
             
             memory.addEventListener('mouseleave', () => {
@@ -443,18 +462,19 @@
             });
             
             memory.addEventListener('click', (e) => {
-                if (e.target === memory) {
+                if (e.target === memory || e.target.className.includes('memory-content')) {
                     state.pinned = !state.pinned;
                     memory.classList.toggle('active', state.pinned);
                 }
             });
             
-            // Animation loop
+            // Animation loop - THIS IS THE CRUCIAL FIX
             function animate() {
                 if (!state.pinned) {
+                    // Update position
                     state.yPos += state.hovered ? 0.2 : state.speed;
-                    state.xPos += Math.sin(state.yPos * 0.005) * 0.2;
                     
+                    // Apply new position
                     memory.style.top = `${state.yPos}px`;
                     memory.style.left = `${state.xPos}px`;
                     
@@ -465,9 +485,9 @@
                     }
                     
                     // Reset if off screen
-                    if (state.yPos > window.innerHeight + memory.textContent.length * 30) {
-                        state.yPos = -memory.textContent.length * 30;
-                        state.xPos = Math.random() * window.innerWidth;
+                    if (state.yPos > window.innerHeight + 50) {
+                        state.yPos = -displayText.length * 2;
+                        state.xPos = Math.random() * (window.innerWidth - 100);
                         memory.style.opacity = '1';
                     }
                 }
@@ -475,24 +495,8 @@
                 animationFrameIds.push(requestAnimationFrame(animate));
             }
             
+            // Start the animation
             animate();
-        }
-        
-        function updateButtonPosition(memory, actionsDiv, state) {
-            const memoryRect = memory.getBoundingClientRect();
-            const actionsWidth = 100;
-            const actionsHeight = 60;
-            
-            // Calculate position relative to memory
-            let left = state.mouseX - memoryRect.left - (actionsWidth / 2);
-            let top = state.mouseY - memoryRect.top + 20;
-            
-            // Keep buttons within memory bounds
-            left = Math.max(5, Math.min(left, memoryRect.width - actionsWidth - 5));
-            top = Math.max(5, Math.min(top, memoryRect.height - actionsHeight - 5));
-            
-            actionsDiv.style.left = `${left}px`;
-            actionsDiv.style.top = `${top}px`;
         }
         
         function navigateToMemory(memoryData, mode) {
@@ -508,7 +512,7 @@
         
         function createRain() {
             const rainDrops = [];
-            const rainCount = 80; // Reduced for better performance
+            const rainCount = 60;
             
             function createDrop() {
                 const drop = document.createElement('div');
@@ -528,7 +532,6 @@
                 rainContainer.appendChild(drop);
                 rainDrops.push(drop);
                 
-                // Remove after animation
                 setTimeout(() => {
                     if (drop.parentNode) {
                         rainContainer.removeChild(drop);
