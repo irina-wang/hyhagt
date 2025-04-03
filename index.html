@@ -278,12 +278,112 @@
         let cleanupRain = () => {};
 
         // Initialize
+        // Modified memory data structure
+        function createMemoryData(text, colorScale) {
+            const blue = Math.round(255 * (1 - colorScale / 10));
+            const green = Math.round(255 * (colorScale / 10));
+            return {
+                text: text,
+                color: `rgba(0, ${green}, ${blue}, 0.9)`,
+                colorScale: colorScale,
+                timestamp: new Date().toISOString(),
+                id: Date.now().toString()
+            };
+        }
+
+        // Modified confirmColor function
+        function confirmColor() {
+            colorPicker.style.display = 'none';
+            const memoryData = createMemoryData(
+                pendingMemory, 
+                parseFloat(memoryColorInput.value)
+            );
+            
+            memories.push(memoryData);
+            localStorage.setItem('rainyMemories', JSON.stringify(memories));
+            createMemoryElement(memoryData);
+            
+            const hint = document.querySelector('.submit-hint');
+            hint.textContent = 'Memory saved! Press Enter to share';
+        }
+
+        // Modified loadMemories function
+        function loadMemories() {
+            const saved = localStorage.getItem('rainyMemories');
+            if (saved) {
+                try {
+                    memories = JSON.parse(saved);
+                    // Convert old format to new format if needed
+                    memories = memories.map(memory => {
+                        if (typeof memory === 'string') {
+                            return createMemoryData(memory, 5); // Default color scale
+                        }
+                        // Backward compatibility for older objects
+                        if (!memory.timestamp) {
+                            memory.timestamp = new Date().toISOString();
+                        }
+                        if (!memory.colorScale) {
+                            // Extract scale from color if possible
+                            const match = memory.color.match(/rgba\(0, (\d+), (\d+)/);
+                            if (match) {
+                                const green = parseInt(match[1]);
+                                memory.colorScale = (green / 255 * 10).toFixed(1);
+                            } else {
+                                memory.colorScale = 5; // Default
+                            }
+                        }
+                        return memory;
+                    });
+                    localStorage.setItem('rainyMemories', JSON.stringify(memories));
+                    
+                    memories.forEach(memory => {
+                        createMemoryElement(memory);
+                    });
+                } catch (e) {
+                    console.error("Error loading memories:", e);
+                }
+            }
+        }
+
+        // New function to export memories
+        function exportMemories() {
+            const dataStr = JSON.stringify(memories, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const exportName = `rainy-memories-${new Date().toISOString().slice(0,10)}.json`;
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportName);
+            linkElement.click();
+        }
+
+        // Add export button to your prompt div
+        function addExportButton() {
+            const exportBtn = document.createElement('button');
+            exportBtn.textContent = 'Export Memories';
+            exportBtn.style = `
+                margin-top: 15px;
+                padding: 8px 15px;
+                background: rgba(20, 30, 50, 0.7);
+                color: #fff9e6;
+                border: 1px solid rgba(150, 130, 100, 0.5);
+                border-radius: 5px;
+                cursor: pointer;
+                font-family: 'Patrick Hand', cursive;
+            `;
+            exportBtn.addEventListener('click', exportMemories);
+            promptDiv.appendChild(exportBtn);
+        }
+
+        // Initialize with export button
         document.addEventListener('DOMContentLoaded', () => {
             loadMemories();
             setupMusic();
             setupEventListeners();
             memoryInput.focus();
             cleanupRain = createRain();
+            addExportButton(); // Add this line
         });
 
         function setupEventListeners() {
