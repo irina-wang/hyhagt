@@ -1,123 +1,164 @@
-
 /*
- * Musical Hand Pose Controller
- * Uses ml5.js handPose to trigger different notes when pinching
+ * Dual-Hand Musical Controller - Final Working Version
  */
 
-let handPose;
+let handpose;
 let video;
 let hands = [];
-let pinchThreshold = 30; // Distance threshold for considering a pinch
-let wasPinched = false; // To track pinch state changes
+let pinchThreshold = 40;
+let wasPinchedLeft = false;
+let wasPinchedRight = false;
 
 // Sound variables
-let polySynth;
-let notes = ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5'];
-let currentNote = '';
-
-function preload() {
-  // Load the handPose model
-  handPose = ml5.handPose();
-}
+let synth;
+let leftHandNotes = ['C3', 'D3', 'E3', 'F3', 'G3', 'A3', 'B3'];
+let rightHandNotes = ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4'];
+let currentLeftNote = '';
+let currentRightNote = '';
 
 function setup() {
-  createCanvas(640, 480);
+  let canvas = createCanvas(windowWidth, windowHeight);
+  canvas.position(0, 0);
   
-  // Create the webcam video and hide it
+  // Create video with proper DOM element
   video = createCapture(VIDEO);
-  video.size(640, 480);
+  video.size(width, height);
   video.hide();
+  // video.parent('videoContainer');
   
-  // Start detecting hands from the webcam video
-  handPose.detectStart(video, gotHands);
+  // Initialize handpose model
+  handpose = ml5.handPose(video, { flipHorizontal: true }, modelReady);
   
-  // Create a sound synth - now with proper p5.sound library loaded
-  polySynth = new p5.PolySynth();
-  
-  // Set up synth parameters
-  if (polySynth) {
-    polySynth.setADSR(0.05, 0.1, 0.5, 0.5); // Attack, Decay, Sustain, Release
-  }
+  // Create synth
+  synth = new p5.PolySynth();
+  synth.setADSR(0.05, 0.1, 0.5, 0.5);
   
   textSize(20);
   textAlign(CENTER, CENTER);
 }
 
+function modelReady() {
+  console.log("Handpose model ready!");
+  // Start detection loop
+  detectHands();
+}
+
+function detectHands() {
+  if (video && video.loadedmetadata) {
+    handpose.detect(video)
+      .then(results => {
+        gotHands(results);
+        // Continue detection
+        requestAnimationFrame(detectHands);
+      })
+      .catch(err => {
+        console.error("Detection error:", err);
+        requestAnimationFrame(detectHands);
+      });
+  } else {
+    requestAnimationFrame(detectHands);
+  }
+}
+
+function gotHands(results) {
+  hands = results;
+}
+
 function draw() {
-  // Draw the webcam video
+  // Clear with semi-transparent background for trail effect
+  background(0, 0, 0, 25);
+  
+  // Draw video feed
   image(video, 0, 0, width, height);
   
-  // Draw note regions (optional visualization)
   drawNoteRegions();
   
-  // If there is at least one hand
-  if (hands.length > 0) {
-    // Find the index finger tip and thumb tip
-    let finger = hands[0].index_finger_tip;
-    let thumb = hands[0].thumb_tip;
+  // Process all detected hands
+  for (let i = 0; i < hands.length; i++) {
+    let hand = hands[i];
     
-    // Calculate the pinch distance
-    let pinchDist = dist(finger.x, finger.y, thumb.x, thumb.y);
-    
-    // Check if pinched (distance below threshold)
+    // Get landmarks
+    let indexTip = hand.index_finger_tip;  // Index finger tip
+    let thumbTip = hand.thumb_tip;  // Thumb tip
+    // console.log(indexTip)
+    // console.log(thumbTip)
+
+    let pinchDist = dist(indexTip.x, indexTip.y, thumbTip.x, thumbTip.y);
     let isPinched = pinchDist < pinchThreshold;
+    console.log(hand)
+    console.log(pinchDist, isPinched)
+
+    // Get hand midpoint
+    let centerX = (indexTip.x + thumbTip.x) / 2;
+    let centerY = (indexTip.y + thumbTip.y) / 2;
     
-    // If just started pinching (tap gesture)
-    if (isPinched && !wasPinched) {
-      // Get the midpoint between finger and thumb
-      let centerX = (finger.x + thumb.x) / 2;
-      let centerY = (finger.y + thumb.y) / 2;
-      
-      // Map the Y position to a note (higher on screen = higher pitch)
-      let noteIndex = floor(map(centerY, 0, height, 0, notes.length));
-      noteIndex = constrain(noteIndex, 0, notes.length - 1);
-      currentNote = notes[noteIndex];
-      
-      // Play the note if synth is available
-      if (polySynth) {
-        playNote(currentNote);
+    // Determine if hand is on left or right side of screen
+    let isLeftSide = centerX < width/2;
+    
+    if (isLeftSide) {
+      // Left side logic
+      if (isPinched && !wasPinchedRight) {
+        let noteIndex = floor(map(centerY, 0, height, 0, leftHandNotes.length));
+        noteIndex = constrain(noteIndex, 0, leftHandNotes.length - 1);
+        currentLeftNote = leftHandNotes[noteIndex];
+        playNote(currentLeftNote, 0.7); // Slightly louder for bass
       }
-    }
-    
-    // Update pinch state
-    wasPinched = isPinched;
-    
-    // Visual feedback
-    fill(isPinched ? color(255, 0, 0, 150) : color(0, 255, 0, 150));
-    noStroke();
-    circle((finger.x + thumb.x)/2, (finger.y + thumb.y)/2, pinchDist);
-    
-    // Display current note
-    if (currentNote) {
-      fill(255);
-      text("Current Note: " + currentNote, width/2, 30);
+      wasPinchedLeft = isPinched;
+      
+      // Visual feedback for left hand
+      fill(isPinched ? color(100, 100, 255, 150) : color(255, 255, 100, 150));
+      circle(centerX, centerY, -pinchDist);
+
+    } else {
+      // Right side logic
+      if (isPinched && !wasPinchedLeft) {
+        let noteIndex = floor(map(centerY, 0, height, 0, rightHandNotes.length));
+        noteIndex = constrain(noteIndex, 0, rightHandNotes.length - 1);
+        currentRightNote = rightHandNotes[noteIndex];
+        playNote(currentRightNote, 0.5);
+      }
+      wasPinchedRight = isPinched;
+      
+      // Visual feedback for right hand
+      fill(isPinched ? color(255, 100, 100, 150) : color(100, 255, 100, 150));
+      circle(centerX, centerY, -pinchDist);
     }
   }
+  
+  // Display current notes
+  fill(255);
+  text("Left: " + (currentLeftNote || "-"), width/4, 30);
+  text("Right: " + (currentRightNote || "-"), 3*width/4, 30);
 }
 
 function drawNoteRegions() {
-  // Visualize the note regions (optional)
-  let regionHeight = height / notes.length;
-  for (let i = 0; i < notes.length; i++) {
-    fill(0, 0, 255, 30);
-    rect(0, i * regionHeight, width, regionHeight);
+  // Left side regions (bass)
+  let regionHeight = height / leftHandNotes.length;
+  for (let i = 0; i < leftHandNotes.length; i++) {
+    fill(255, 100, 100, 30);
+    rect(0, i * regionHeight, width/2, regionHeight);
     fill(255);
-    text(notes[i], width/2, (i + 0.5) * regionHeight);
+    text(leftHandNotes[i], width/4, (i + 0.5) * regionHeight);
+  }
+  
+  // Right side regions (treble)
+  for (let i = 0; i < rightHandNotes.length; i++) {
+    fill(100, 100, 255, 30);
+    rect(width/2, i * regionHeight, width/2, regionHeight);
+    fill(255);
+    text(rightHandNotes[i], 3*width/4, (i + 0.5) * regionHeight);
   }
 }
 
-function playNote(note) {
+function playNote(note, velocity) {
   try {
-    // Play the note with the synth
-    polySynth.play(note, 0.5, 0, 0.2);
-    console.log("Playing note: " + note);
+    synth.play(note, velocity, 0, 0.2);
   } catch (e) {
     console.error("Error playing note:", e);
   }
 }
 
-// Callback function for when handPose outputs data
-function gotHands(results) {
-  // Save the output to the hands variable
-  hands = results;
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+  video.size(width, height);
 }
