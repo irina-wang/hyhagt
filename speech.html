@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tell me a story</title>
+    <title>Random Story Teller</title>
     <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap" rel="stylesheet">
     <style>
         body {
@@ -57,88 +57,107 @@
         #speak-btn:hover {
             background: rgba(30, 40, 60, 0.8);
         }
+        
+        /* .random-settings {
+            margin: 15px 0;
+            padding: 10px;
+            background: rgba(20, 30, 50, 0.5);
+            border-radius: 8px;
+            display: hidden;
+        } */
     </style>
 </head>
 <body>
     <div id="container">
-        <h1>Read it for Me</h1>
-        <textarea id="input-text" rows="5" placeholder="Enter text you want to hear..."></textarea>
-        <br>
-        <div class="controls">
-            <label for="voice-select">Voice:</label>
-            <select id="voice-select"></select>
-            
-            <label for="pitch">Pitch:</label>
-            <input type="range" id="pitch" min="0.5" max="2" step="0.1" value="1">
-            
-            <label for="rate">Speed:</label>
-            <input type="range" id="rate" min="0.5" max="2" step="0.1" value="1">
+        <h1>Rainy Memories</h1>
+        <textarea id="input-text" rows="5" placeholder="Enter text you want to hear in a random voice..."></textarea>
+        <div class="random-settings" id="current-settings">
+            <!-- <p>Next reading will use random settings!</p> -->
         </div>
-        <button id="speak-btn">Speak</button>
+        <button id="speak-btn">Someone Read This Please </button>
     </div>
 
     <script>
         const speakBtn = document.getElementById('speak-btn');
         const inputText = document.getElementById('input-text');
+        const currentSettings = document.getElementById('current-settings');
+        let voices = [];
         
-        function speak(text) {
-            // Cancel any ongoing speech
+        // Get available voices
+        function loadVoices() {
+            voices = window.speechSynthesis.getVoices();
+            if (voices.length === 0) {
+                setTimeout(loadVoices, 100);
+            }
+        }
+        
+        // Initialize voices
+        window.speechSynthesis.onvoiceschanged = loadVoices;
+        loadVoices();
+        
+        function getRandomVoice() {
+            if (voices.length === 0) return null;
+            return voices[Math.floor(Math.random() * voices.length)];
+        }
+        
+        function getRandomPitch() {
+            return (Math.random() * 1.5) + 0.5; // Between 0.5 and 2.0
+        }
+        
+        function getRandomRate() {
+            return (Math.random() * 1.5) + 0.5; // Between 0.5 and 2.0
+        }
+        
+        function speakWithRandomSettings(text) {
             window.speechSynthesis.cancel();
             
             const utterance = new SpeechSynthesisUtterance(text);
+            const voice = getRandomVoice();
+            const pitch = getRandomPitch();
+            const rate = getRandomRate();
+            
+            if (voice) {
+                utterance.voice = voice;
+                utterance.lang = voice.lang;
+            }
+            
+            utterance.pitch = pitch;
+            utterance.rate = rate;
+            
+            // Display the random settings being used
+            // currentSettings.innerHTML = `
+            //     <p><strong>Current Voice:</strong> ${voice?.name || 'Default'}</p>
+            //     <p><strong>Pitch:</strong> ${pitch.toFixed(1)}</p>
+            //     <p><strong>Speed:</strong> ${rate.toFixed(1)}</p>
+            // `;
+            
             window.speechSynthesis.speak(utterance);
+            
+            return { voice: voice?.name, pitch, rate };
         }
         
         speakBtn.addEventListener('click', () => {
             const text = inputText.value.trim();
             if (text) {
-                speak(text);
+                speakWithRandomSettings(text);
             } else {
-                alert("Please enter some text first!");
+                // If no text, use a fun default message
+                const funMessages = [
+                    "You gotta write one yourself!"
+                ];
+                const randomMessage = funMessages[Math.floor(Math.random() * funMessages.length)];
+                inputText.value = randomMessage;
+                speakWithRandomSettings(randomMessage);
             }
         });
         
-        // Optional: Allow pressing Enter to speak (while in textarea)
+        // Optional: Press Enter to speak
         inputText.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 speakBtn.click();
             }
         });
-        let voices = [];
-
-        function populateVoiceList() {
-            voices = window.speechSynthesis.getVoices();
-            const voiceSelect = document.getElementById("voice-select");
-            
-            voiceSelect.innerHTML = '';
-            voices.forEach(voice => {
-                const option = document.createElement("option");
-                option.textContent = `${voice.name} (${voice.lang})`;
-                option.setAttribute("data-name", voice.name);
-                voiceSelect.appendChild(option);
-            });
-        }
-
-        function speak(text) {
-            window.speechSynthesis.cancel();
-            
-            const utterance = new SpeechSynthesisUtterance(text);
-            const voiceSelect = document.getElementById("voice-select");
-            const pitch = document.getElementById("pitch").value;
-            const rate = document.getElementById("rate").value;
-            
-            const selectedVoiceName = voiceSelect.selectedOptions[0]?.getAttribute("data-name");
-            utterance.voice = voices.find(voice => voice.name === selectedVoiceName);
-            utterance.pitch = pitch;
-            utterance.rate = rate;
-            
-            window.speechSynthesis.speak(utterance);
-        }
-
-        // Initialize voices
-        speechSynthesis.onvoiceschanged = populateVoiceList;
-        populateVoiceList(); // In case voices are already loaded
     </script>
 </body>
 </html>
