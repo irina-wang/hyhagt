@@ -64,6 +64,16 @@
         <h1>Read it for Me</h1>
         <textarea id="input-text" rows="5" placeholder="Enter text you want to hear..."></textarea>
         <br>
+        <div class="controls">
+            <label for="voice-select">Voice:</label>
+            <select id="voice-select"></select>
+            
+            <label for="pitch">Pitch:</label>
+            <input type="range" id="pitch" min="0.5" max="2" step="0.1" value="1">
+            
+            <label for="rate">Speed:</label>
+            <input type="range" id="rate" min="0.5" max="2" step="0.1" value="1">
+        </div>
         <button id="speak-btn">Speak</button>
     </div>
 
@@ -95,6 +105,40 @@
                 speakBtn.click();
             }
         });
+        let voices = [];
+
+        function populateVoiceList() {
+            voices = window.speechSynthesis.getVoices();
+            const voiceSelect = document.getElementById("voice-select");
+            
+            voiceSelect.innerHTML = '';
+            voices.forEach(voice => {
+                const option = document.createElement("option");
+                option.textContent = `${voice.name} (${voice.lang})`;
+                option.setAttribute("data-name", voice.name);
+                voiceSelect.appendChild(option);
+            });
+        }
+
+        function speak(text) {
+            window.speechSynthesis.cancel();
+            
+            const utterance = new SpeechSynthesisUtterance(text);
+            const voiceSelect = document.getElementById("voice-select");
+            const pitch = document.getElementById("pitch").value;
+            const rate = document.getElementById("rate").value;
+            
+            const selectedVoiceName = voiceSelect.selectedOptions[0]?.getAttribute("data-name");
+            utterance.voice = voices.find(voice => voice.name === selectedVoiceName);
+            utterance.pitch = pitch;
+            utterance.rate = rate;
+            
+            window.speechSynthesis.speak(utterance);
+        }
+
+        // Initialize voices
+        speechSynthesis.onvoiceschanged = populateVoiceList;
+        populateVoiceList(); // In case voices are already loaded
     </script>
 </body>
 </html>
