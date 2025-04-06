@@ -8,7 +8,8 @@ let hands = [];
 let pinchThreshold = 40;
 let wasPinchedLeft = false;
 let wasPinchedRight = false;
-
+let initWidth = 600;
+let initHeight = 450;
 // Sound variables
 let synth;
 let leftHandNotes = ['C3', 'D3', 'E3', 'F3', 'G3', 'A3', 'B3'];
@@ -17,8 +18,8 @@ let currentLeftNote = '';
 let currentRightNote = '';
 
 function setup() {
-  let canvas = createCanvas(windowWidth, windowHeight);
-  canvas.position(0, 0);
+  let canvas = createCanvas(initWidth, initHeight);
+  canvas.position(windowWidth/2-initWidth/2, windowHeight/2-initHeight/2);
   
   // Create video with proper DOM element
   video = createCapture(VIDEO);
@@ -159,6 +160,6 @@ function playNote(note, velocity) {
 }
 
 function windowResized() {
-  resizeCanvas(windowWidth, windowHeight);
+  resizeCanvas(initWidth, initHeight);
   video.size(width, height);
 }
