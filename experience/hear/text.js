@@ -6,11 +6,13 @@
 let handpose;
 let video;
 let hands = [];
-let pinchThreshold = 40;
 let wasPinchedLeft = false;
 let wasPinchedRight = false;
 let initWidth = 600;
 let initHeight = 450;
+let pinchThreshold = 40;
+let circleThreshold = 30; 
+
 // Sound variables
 let synth;
 let leftHandNotes = ['C3', 'D3', 'E3', 'F3', 'G3', 'A3', 'B3'];
@@ -72,12 +74,16 @@ function draw() {
     let thumbTip = hand.thumb_tip;
     let pinchDist = dist(indexTip.x, indexTip.y, thumbTip.x, thumbTip.y);
     let isPinched = pinchDist < pinchThreshold;
+    let showCircle = pinchDist < circleThreshold;
+
     let centerX = (indexTip.x + thumbTip.x) / 2;
     let centerY = (indexTip.y + thumbTip.y) / 2;
     let isLeftSide = centerX < width/2;
     
     // Calculate angle between thumb and index finger
     let angle = atan2(thumbTip.y - indexTip.y, thumbTip.x - indexTip.x);
+
+    
     
     // Adjust angle to keep text upright
     let displayAngle = angle;
@@ -92,17 +98,24 @@ function draw() {
         currentLeftNote = leftHandNotes[noteIndex];
         playNote(currentLeftNote, 0.7);
       }
-      wasPinchedLeft = isPinched;
+    wasPinchedLeft = isPinched;
       
       // Draw properly oriented text for left hand
-      drawOrientedText(
-        "let's play",
-        centerX,
-        centerY,
-        displayAngle,
-        map(pinchDist, 0, 150, 12, 24),
-        isPinched ? color(100, 100, 255, 200) : color(255, 255, 100, 200)
-      );
+    // Visual feedback for left hand
+    if (showCircle) {
+        // Draw circle when fingers are very close
+        fill(isPinched ? color(100, 100, 255, 200) : color(255, 255, 100, 200));
+        circle(centerX, centerY, map(pinchDist, 0, circleThreshold, 30, 10));
+    } else { 
+        drawOrientedText(
+            "let's play",
+            centerX,
+            centerY,
+            displayAngle,
+            map(pinchDist, circleThreshold, 150, 24, 12),
+            isPinched ? color(100, 100, 255, 200) : color(255, 255, 100, 200)
+        );
+    }
 
     } else {
       if (isPinched && !wasPinchedLeft) {
@@ -111,25 +124,36 @@ function draw() {
         currentRightNote = rightHandNotes[noteIndex];
         playNote(currentRightNote, 0.5);
       }
-      wasPinchedRight = isPinched;
+    wasPinchedRight = isPinched;
       
-      // Draw properly oriented text for right hand
-      drawOrientedText(
-        "hope you have a good time",
-        centerX,
-        centerY,
-        displayAngle,
-        map(pinchDist, 0, 150, 12, 18),
-        isPinched ? color(255, 100, 100, 200) : color(100, 255, 100, 200)
-      );
+    // Visual feedback for right hand
+    if (showCircle) {
+        // Draw circle when fingers are very close
+        fill(isPinched ? color(255, 100, 100, 200) : color(100, 255, 100, 200));
+        circle(centerX, centerY, map(pinchDist, 0, circleThreshold, 30, 10));
+    } else {
+        // Draw properly oriented text for right hand
+        drawOrientedText(
+            "hope you have a good time",
+            centerX,
+            centerY,
+            displayAngle,
+            map(pinchDist, circleThreshold, 150, 12, 18),
+            isPinched ? color(255, 100, 100, 200) : color(100, 255, 100, 200)
+        );
+    }
     }
   }
   
   fill(255);
-  text("Left: " + (currentLeftNote || "-"), width/4, 30);
-  text("Right: " + (currentRightNote || "-"), 3*width/4, 30);
+//   text("Left: " + (currentLeftNote || "-"), width/4, 30);
+//   text("Right: " + (currentRightNote || "-"), 3*width/4, 30);
 }
 
+function currText(){
+    text = ["hope", "you", "have", "a", "good", "time", ":P"]
+
+}
 function drawOrientedText(txt, x, y, angle, size, col) {
   push();
   translate(x, y);
