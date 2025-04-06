@@ -28,7 +28,7 @@ function setup() {
   // video.parent('videoContainer');
   
   // Initialize handpose model
-  handpose = ml5.handPose(video, { flipHorizontal: true }, modelReady);
+  handpose = ml5.handPose(video, { flipHorizontal: false }, modelReady);
   
   // Create synth
   synth = new p5.PolySynth();
