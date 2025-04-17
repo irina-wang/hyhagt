@@ -52,7 +52,7 @@
             writing-mode: horizontal-tb;
             white-space: normal;
             max-width: 280px;
-            max-height: 160px;
+            max-height: 200px;
             overflow-y: auto;
             padding: 15px;
             border-radius: 10px;
@@ -94,7 +94,7 @@
             font-family: 'Patrick Hand', cursive;
             cursor: pointer;
             transition: all 0.2s;
-            min-width: 70px;
+            min-width: 20px;
             text-align: center;
         }
 
@@ -527,12 +527,23 @@
                 navigateToMemory(memoryData, 'hear');
             });
             
+            const directBtn = document.createElement('button');
+            directBtn.className = 'memory-btn';
+            directBtn.textContent = 'Direct';
+            directBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                navigateToMemory(memoryData, 'direct');
+            });
+            
+
             actionsDiv.appendChild(feelBtn);
             actionsDiv.appendChild(hearBtn);
+            actionsDiv.appendChild(directBtn);
+
             
             memory.appendChild(contentDiv);
             memory.appendChild(actionsDiv);
-            
+
             // Initial position - start above the viewport
             const startX = Math.random() * (window.innerWidth - 100);
             memory.style.left = `${startX}px`;
