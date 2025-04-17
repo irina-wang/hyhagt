@@ -1,3 +1,4 @@
+<!-- TODO: hover over read -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -123,14 +124,6 @@
             
             utterance.pitch = pitch;
             utterance.rate = rate;
-            
-            // Display the random settings being used
-            // currentSettings.innerHTML = `
-            //     <p><strong>Current Voice:</strong> ${voice?.name || 'Default'}</p>
-            //     <p><strong>Pitch:</strong> ${pitch.toFixed(1)}</p>
-            //     <p><strong>Speed:</strong> ${rate.toFixed(1)}</p>
-            // `;
-            
             window.speechSynthesis.speak(utterance);
             
             return { voice: voice?.name, pitch, rate };

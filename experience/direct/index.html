@@ -50,19 +50,26 @@
       margin-top: 10px;
       color: #fff9e6;
     }
-    
+    #app {
+        display: flex;
+        gap: 20px;
+    }
+    #controls-container {
+        width: 150px;
+        padding: 10px;
+    }
 
   </style>
 </head>
 <body>
-  <div id="container">
-    <h1 id="title">Feel It</h1>
-    <p></p>
-    <div id="canvas-container"></div>
-    
-  </div>
-  <script src="bee_swarm.js"></script>
-
-</body>
-
+    <main>
+    </main>
+    <script src="sketch.js"></script>
+    <script src="letter.js"></script>
+  </body>
+  
+  <div id="app">
+  <div id="controls-container"></div>
+  <div id="canvas-container"></div>
+</div>
 </html>

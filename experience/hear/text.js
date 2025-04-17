@@ -1,17 +1,12 @@
-
-/*
- * Dual-Hand Musical Controller - Properly Oriented Text Version
- */
-
 let handpose;
 let video;
 let hands = [];
+let pinchThreshold = 40;
+let circleThreshold = 30;
 let wasPinchedLeft = false;
 let wasPinchedRight = false;
 let initWidth = 600;
 let initHeight = 450;
-let pinchThreshold = 40;
-let circleThreshold = 30; 
 
 // Sound variables
 let synth;
@@ -19,6 +14,11 @@ let leftHandNotes = ['C3', 'D3', 'E3', 'F3', 'G3', 'A3', 'B3'];
 let rightHandNotes = ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4'];
 let currentLeftNote = '';
 let currentRightNote = '';
+
+// Word cycling variables
+let words = ["hope", "you", "have", "a", "good", "time", ":)"];
+let currentWordIndex = 0;
+let currentWord = words[currentWordIndex];
 
 function setup() {
   let canvas = createCanvas(initWidth, initHeight);
@@ -75,89 +75,90 @@ function draw() {
     let pinchDist = dist(indexTip.x, indexTip.y, thumbTip.x, thumbTip.y);
     let isPinched = pinchDist < pinchThreshold;
     let showCircle = pinchDist < circleThreshold;
-
     let centerX = (indexTip.x + thumbTip.x) / 2;
     let centerY = (indexTip.y + thumbTip.y) / 2;
     let isLeftSide = centerX < width/2;
     
     // Calculate angle between thumb and index finger
     let angle = atan2(thumbTip.y - indexTip.y, thumbTip.x - indexTip.x);
-
-    
     
     // Adjust angle to keep text upright
     let displayAngle = angle;
     if (angle > PI/2 || angle < -PI/2) {
-      displayAngle = angle + PI; // Flip 180 degrees if upside down
+      displayAngle = angle + PI;
     }
     
     if (isLeftSide) {
       if (isPinched && !wasPinchedRight) {
+        // Music note logic
         let noteIndex = floor(map(centerY, 0, height, 0, leftHandNotes.length));
         noteIndex = constrain(noteIndex, 0, leftHandNotes.length - 1);
         currentLeftNote = leftHandNotes[noteIndex];
         playNote(currentLeftNote, 0.7);
+        
+        // Word cycling logic
+        currentWordIndex = (currentWordIndex + 1) % words.length;
+        currentWord = words[currentWordIndex];
       }
-    wasPinchedLeft = isPinched;
+      wasPinchedLeft = isPinched;
       
-      // Draw properly oriented text for left hand
-    // Visual feedback for left hand
-    if (showCircle) {
-        // Draw circle when fingers are very close
+      // Visual feedback for left hand
+      if (showCircle) {
         fill(isPinched ? color(100, 100, 255, 200) : color(255, 255, 100, 200));
         circle(centerX, centerY, map(pinchDist, 0, circleThreshold, 30, 10));
-    } else { 
+      } else {
         drawOrientedText(
-            "let's play",
-            centerX,
-            centerY,
-            displayAngle,
-            map(pinchDist, circleThreshold, 150, 24, 12),
-            isPinched ? color(100, 100, 255, 200) : color(255, 255, 100, 200)
+          currentWord,
+          centerX,
+          centerY,
+          displayAngle,
+          map(pinchDist, circleThreshold, 150, 24, 12),
+          isPinched ? color(100, 100, 255, 200) : color(255, 255, 100, 200)
         );
-    }
+      }
 
     } else {
       if (isPinched && !wasPinchedLeft) {
+        // Music note logic
         let noteIndex = floor(map(centerY, 0, height, 0, rightHandNotes.length));
         noteIndex = constrain(noteIndex, 0, rightHandNotes.length - 1);
         currentRightNote = rightHandNotes[noteIndex];
         playNote(currentRightNote, 0.5);
+        
+        // Word cycling logic
+        currentWordIndex = (currentWordIndex + 1) % words.length;
+        currentWord = words[currentWordIndex];
       }
-    wasPinchedRight = isPinched;
+      wasPinchedRight = isPinched;
       
-    // Visual feedback for right hand
-    if (showCircle) {
-        // Draw circle when fingers are very close
+      // Visual feedback for right hand
+      if (showCircle) {
         fill(isPinched ? color(255, 100, 100, 200) : color(100, 255, 100, 200));
         circle(centerX, centerY, map(pinchDist, 0, circleThreshold, 30, 10));
-    } else {
-        // Draw properly oriented text for right hand
+      } else {
         drawOrientedText(
-            "hope you have a good time",
-            centerX,
-            centerY,
-            displayAngle,
-            map(pinchDist, circleThreshold, 150, 12, 18),
-            isPinched ? color(255, 100, 100, 200) : color(100, 255, 100, 200)
+          currentWord,
+          centerX,
+          centerY,
+          displayAngle,
+          map(pinchDist, circleThreshold, 150, 18, 10),
+          isPinched ? color(255, 100, 100, 200) : color(100, 255, 100, 200)
         );
-    }
+      }
     }
   }
   
+  // Display current word and notes
   fill(255);
-//   text("Left: " + (currentLeftNote || "-"), width/4, 30);
-//   text("Right: " + (currentRightNote || "-"), 3*width/4, 30);
+//   text("Word: " + currentWord, width/2, 30);
+//   text("Left: " + (currentLeftNote || "-"), width/4, 60);
+//   text("Right: " + (currentRightNote || "-"), 3*width/4, 60);
 }
 
-function currText(){
-    text = ["hope", "you", "have", "a", "good", "time", ":P"]
-
-}
 function drawOrientedText(txt, x, y, angle, size, col) {
   push();
   translate(x, y);
-  rotate(angle); // Now using adjusted angle
+  rotate(angle);
   textAlign(CENTER, CENTER);
   textSize(size);
   fill(col);

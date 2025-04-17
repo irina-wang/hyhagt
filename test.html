@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rainy Day Memories</title>
+    <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #0a0e24;
+            font-family: 'Patrick Hand', cursive;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        #container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        
+        /* Vertical falling text style */
+        .memory {
+            position: absolute;
+            color: rgba(255, 245, 220, 0.9);
+            font-size: 22px;
+            pointer-events: auto;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            line-height: 1.3;
+            white-space: nowrap;
+            will-change: transform;
+            letter-spacing: 1px;
+            filter: drop-shadow(0 0 5px rgba(200, 180, 150, 0.3));
+            cursor: default;
+            transition: all 0.3s ease-out;
+            transform-origin: center center;
+            backface-visibility: hidden;
+            padding: 5px;
+        }
+
+        /* Horizontal box style when hovered */
+        .memory:hover, .memory.active {
+            writing-mode: horizontal-tb;
+            white-space: normal;
+            max-width: 280px;
+            max-height: 160px;
+            overflow-y: auto;
+            padding: 15px;
+            border-radius: 10px;
+            background: rgba(15, 25, 45, 0.8);
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
+            transform: scale(1.05);
+            z-index: 10;
+        }
+
+        .memory::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .memory::-webkit-scrollbar-thumb {
+            background: rgba(150, 130, 100, 0.5);
+            border-radius: 3px;
+        }
+
+        .memory-actions {
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 12px;
+        }
+
+        .memory:hover .memory-actions,
+        .memory.active .memory-actions {
+            display: flex;
+        }
+
+        .memory-btn {
+            background: rgba(20, 40, 80, 0.8);
+            color: #fff9e6;
+            border: 1px solid rgba(150, 130, 100, 0.5);
+            border-radius: 5px;
+            padding: 6px 12px;
+            font-size: 15px;
+            font-family: 'Patrick Hand', cursive;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-width: 70px;
+            text-align: center;
+        }
+
+        .memory-btn:hover {
+            background: rgba(30, 50, 90, 0.9);
+            transform: scale(1.05);
+        }
+        
+        #prompt {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(10, 20, 40, 0.9);
+            padding: 25px;
+            border-radius: 15px;
+            color: #fff9e6;
+            text-align: center;
+            z-index: 100;
+            border: 1px solid rgba(150, 130, 100, 0.3);
+            box-shadow: 0 0 30px rgba(150, 130, 100, 0.2);
+            width: 300px;
+        }
+        
+        #prompt h2 {
+            font-size: 28px;
+            margin-bottom: 15px;
+            color: #fff9e6;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
+            font-weight: normal;
+        }
+        
+        #memory-input {
+            margin: 15px auto 0;
+            padding: 10px 15px;
+            width: calc(100% - 30px);
+            border-radius: 8px;
+            border: 1px solid rgba(150, 130, 100, 0.5);
+            background: rgba(20, 30, 50, 0.7);
+            color: #fff9e6;
+            font-size: 16px;
+            font-family: 'Patrick Hand', cursive;
+            display: block;
+            box-sizing: border-box;
+        }
+        
+        #color-picker {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(10, 20, 40, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            color: #fff;
+            z-index: 200;
+            width: 300px;
+        }
+
+        #color-picker input {
+            margin: 10px auto;
+            width: 100%;
+            display: block;
+        }
+
+        .rain {
+            position: absolute;
+            width: 1px;
+            background: linear-gradient(to bottom, transparent, rgba(200, 200, 220, 0.5));
+            animation: fall linear forwards;
+            pointer-events: none;
+        }
+        
+        @keyframes fall {
+            to {
+                transform: translateY(100vh);
+            }
+        }
+        
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at center, transparent 0%, rgba(10, 15, 30, 0.7) 100%);
+            z-index: 0;
+            pointer-events: none;
+        }
+        
+        #music-control {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 100;
+            background: rgba(10, 20, 40, 0.7);
+            padding: 10px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 1px solid rgba(150, 130, 100, 0.3);
+        }
+        
+        #music-control i {
+            color: #fff9e6;
+            font-size: 24px;
+        }
+        
+        .submit-hint {
+            margin-top: 10px;
+            font-size: 14px;
+            opacity: 0.7;
+        }
+
+        #audio-visualizer {
+            position: fixed;
+            bottom: 70px;
+            right: 20px;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: rgba(100, 150, 200, 0.3);
+            z-index: 100;
+            animation: pulse 2s infinite alternate;
+            display: none;
+        }
+
+        @keyframes pulse {
+            from { transform: scale(0.8); opacity: 0.5; }
+            to { transform: scale(1.2); opacity: 0.8; }
+        }
+        
+        .voice-settings {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(10, 20, 40, 0.7);
+            padding: 10px;
+            border-radius: 8px;
+            color: #fff9e6;
+            font-size: 14px;
+            z-index: 100;
+            border: 1px solid rgba(150, 130, 100, 0.3);
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <div id="container"></div>
+    <div id="rain-container"></div>
+    
+    <div id="prompt">
+        <h2>My Last Rainy Day <span style="font-family: sans-serif;">🌧️</span></h2>
+        <input type="text" id="memory-input" placeholder="What did you do? How did it feel?">
+        <div class="submit-hint">Press Enter to share</div>
+    </div>
+
+    <div id="color-picker">
+        <h3>Choose a Shade</h3>
+        <input type="range" id="memory-color" min="0" max="10" step="0.1" value="5">
+        <div id="color-preview" style="margin: 10px auto; width: 50px; height: 20px; background: rgb(0, 128, 128);"></div>
+        <button onclick="confirmColor()" style="padding: 5px 15px; background: rgba(20, 30, 50, 0.7); color: #fff9e6; border: 1px solid rgba(150, 130, 100, 0.5); border-radius: 5px; cursor: pointer; margin-top: 10px;">Confirm</button>
+    </div>
+    
+    <div id="music-control" title="Toggle rain sound">
+        <i class="fas fa-cloud"></i>
+    </div>
+    <div id="audio-visualizer"></div>
+    
+    <!-- <div class="voice-settings" id="current-voice">
+        <p>Hover over memories to hear them in random voices!</p>
+    </div> -->
+
+    <audio id="background-music" loop>
+        <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-16.mp3" type="audio/mpeg">
+    </audio>
+
+    <script>
+        // DOM Elements
+        const container = document.getElementById('container');
+        const rainContainer = document.getElementById('rain-container');
+        const promptDiv = document.getElementById('prompt');
+        const memoryInput = document.getElementById('memory-input');
+        const musicControl = document.getElementById('music-control');
+        const backgroundMusic = document.getElementById('background-music');
+        const audioVisualizer = document.getElementById('audio-visualizer');
+        const colorPicker = document.getElementById('color-picker');
+        const memoryColorInput = document.getElementById('memory-color');
+        const colorPreview = document.getElementById('color-preview');
+        // const currentVoiceDiv = document.getElementById('current-voice');
+        
+        // State
+        let memories = [];
+        let animationFrameIds = [];
+        let isMusicPlaying = false;
+        let pendingMemory = '';
+        let cleanupRain = () => {};
+        let voices = [];
+        let currentUtterance = null;
+
+        // Initialize
+        function createMemoryData(text, colorScale) {
+            const blue = Math.round(255 * (1 - colorScale / 10));
+            const green = Math.round(255 * (colorScale / 10));
+            return {
+                text: text,
+                color: `rgba(0, ${green}, ${blue}, 0.9)`,
+                colorScale: colorScale,
+                timestamp: new Date().toISOString(),
+                id: Date.now().toString()
+            };
+        }
+
+        function confirmColor() {
+            colorPicker.style.display = 'none';
+            const memoryData = createMemoryData(
+                pendingMemory, 
+                parseFloat(memoryColorInput.value)
+            );
+            
+            memories.push(memoryData);
+            localStorage.setItem('rainyMemories', JSON.stringify(memories));
+            createMemoryElement(memoryData);
+            
+            const hint = document.querySelector('.submit-hint');
+            hint.textContent = 'Memory saved! Press Enter to share';
+        }
+
+        function loadMemories() {
+            const saved = localStorage.getItem('rainyMemories');
+            if (saved) {
+                try {
+                    memories = JSON.parse(saved);
+                    memories = memories.map(memory => {
+                        if (typeof memory === 'string') {
+                            return createMemoryData(memory, 5);
+                        }
+                        if (!memory.timestamp) {
+                            memory.timestamp = new Date().toISOString();
+                        }
+                        if (!memory.colorScale) {
+                            const match = memory.color.match(/rgba\(0, (\d+), (\d+)/);
+                            if (match) {
+                                const green = parseInt(match[1]);
+                                memory.colorScale = (green / 255 * 10).toFixed(1);
+                            } else {
+                                memory.colorScale = 5;
+                            }
+                        }
+                        return memory;
+                    });
+                    localStorage.setItem('rainyMemories', JSON.stringify(memories));
+                    
+                    memories.forEach(memory => {
+                        createMemoryElement(memory);
+                    });
+                } catch (e) {
+                    console.error("Error loading memories:", e);
+                }
+            }
+        }
+
+        function exportMemories() {
+            const dataStr = JSON.stringify(memories, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const exportName = `rainy-memories-${new Date().toISOString().slice(0,10)}.json`;
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportName);
+            linkElement.click();
+        }
+
+        function addExportButton() {
+            const exportBtn = document.createElement('button');
+            exportBtn.textContent = 'Export Memories';
+            exportBtn.style = `
+                margin-top: 15px;
+                padding: 8px 15px;
+                background: rgba(20, 30, 50, 0.7);
+                color: #fff9e6;
+                border: 1px solid rgba(150, 130, 100, 0.5);
+                border-radius: 5px;
+                cursor: pointer;
+                font-family: 'Patrick Hand', cursive;
+            `;
+            exportBtn.addEventListener('click', exportMemories);
+            promptDiv.appendChild(exportBtn);
+        }
+
+        // Initialize with export button
+        document.addEventListener('DOMContentLoaded', () => {
+            loadMemories();
+            setupMusic();
+            setupEventListeners();
+            memoryInput.focus();
+            cleanupRain = createRain();
+            addExportButton();
+            loadVoices();
+        });
+
+        function setupEventListeners() {
+            memoryInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') addMemory();
+            });
+            
+            memoryColorInput.addEventListener('input', updateColorPreview);
+            
+            document.addEventListener('click', (e) => {
+                if (!colorPicker.contains(e.target) && e.target !== memoryInput) {
+                    colorPicker.style.display = 'none';
+                }
+            });
+        }
+
+        function updateColorPreview() {
+            const scaleValue = memoryColorInput.value;
+            const blue = Math.round(255 * (1 - scaleValue / 10));
+            const green = Math.round(255 * (scaleValue / 10));
+            colorPreview.style.background = `rgb(0, ${green}, ${blue})`;
+        }
+
+        function setupMusic() {
+            const enableAudio = () => {
+                backgroundMusic.volume = 0.3;
+                backgroundMusic.play().then(() => {
+                    isMusicPlaying = true;
+                    musicControl.innerHTML = '<i class="fas fa-cloud-rain"></i>';
+                    audioVisualizer.style.display = 'block';
+                }).catch(e => {
+                    console.log("Audio playback failed:", e);
+                    musicControl.innerHTML = '<i class="fas fa-volume-mute"></i>';
+                });
+                document.body.removeEventListener('click', enableAudio);
+                document.body.removeEventListener('keydown', enableAudio);
+            };
+            
+            document.body.addEventListener('click', enableAudio, { once: true });
+            document.body.addEventListener('keydown', enableAudio, { once: true });
+            
+            musicControl.addEventListener('click', toggleAudio);
+            
+            function toggleAudio() {
+                if (isMusicPlaying) {
+                    backgroundMusic.pause();
+                    musicControl.innerHTML = '<i class="fas fa-cloud"></i>';
+                    audioVisualizer.style.display = 'none';
+                } else {
+                    backgroundMusic.play();
+                    musicControl.innerHTML = '<i class="fas fa-cloud-rain"></i>';
+                    audioVisualizer.style.display = 'block';
+                }
+                isMusicPlaying = !isMusicPlaying;
+            }
+        }
+        
+        function addMemory() {
+            const memoryText = memoryInput.value.trim();
+            if (memoryText) {
+                pendingMemory = memoryText;
+                colorPicker.style.display = 'block';
+                updateColorPreview();
+                memoryInput.value = '';
+                
+                const hint = document.querySelector('.submit-hint');
+                hint.textContent = 'Choose a color for your memory';
+            }
+        }
+        
+        // Voice Synthesis Functions
+        function loadVoices() {
+            voices = window.speechSynthesis.getVoices();
+            if (voices.length === 0) {
+                window.speechSynthesis.onvoiceschanged = loadVoices;
+            }
+        }
+        
+        function getRandomVoice() {
+            if (voices.length === 0) return null;
+            return voices[Math.floor(Math.random() * voices.length)];
+        }
+        
+        function getRandomPitch() {
+            return (Math.random() * 1.5) + 0.5; // Between 0.5 and 2.0
+        }
+        
+        function getRandomRate() {
+            return (Math.random() * 1.5) + 0.5; // Between 0.5 and 2.0
+        }
+        
+        function speakWithRandomSettings(text) {
+            // Cancel any ongoing speech
+            if (currentUtterance) {
+                window.speechSynthesis.cancel();
+            }
+            
+            const utterance = new SpeechSynthesisUtterance(text);
+            const voice = getRandomVoice();
+            const pitch = getRandomPitch();
+            const rate = getRandomRate();
+            
+            if (voice) {
+                utterance.voice = voice;
+                utterance.lang = voice.lang;
+            }
+            
+            utterance.pitch = pitch;
+            utterance.rate = rate;
+            
+            // Display the random settings being used
+            // currentVoiceDiv.innerHTML = `
+            //     <p><strong>Current Voice:</strong> ${voice?.name || 'Default'}</p>
+            //     <p><strong>Pitch:</strong> ${pitch.toFixed(1)}</p>
+            //     <p><strong>Speed:</strong> ${rate.toFixed(1)}</p>
+            // `;
+            
+            currentUtterance = utterance;
+            window.speechSynthesis.speak(utterance);
+            
+            return { voice: voice?.name, pitch, rate };
+        }
+        
+        function createMemoryElement(memoryData) {
+            const memory = document.createElement('div');
+            memory.className = 'memory';
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'memory-content';
+            
+            let displayText = typeof memoryData === 'string' ? memoryData : memoryData.text;
+            contentDiv.textContent = displayText;
+            
+            if (typeof memoryData !== 'string') {
+                memory.style.color = memoryData.color;
+                memory.dataset.id = memoryData.id;
+            }
+
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'memory-actions';
+            
+            // const hearBtn = document.createElement('button');
+            // hearBtn.className = 'memory-btn';
+            // hearBtn.textContent = 'Hear Again';
+            // hearBtn.addEventListener('click', (e) => {
+            //     e.stopPropagation();
+            //     speakWithRandomSettings(displayText);
+            // });
+            
+            // actionsDiv.appendChild(hearBtn);
+            
+            memory.appendChild(contentDiv);
+            // memory.appendChild(actionsDiv);
+            
+            const startX = Math.random() * (window.innerWidth - 100);
+            memory.style.left = `${startX}px`;
+            memory.style.top = `-${displayText.length * 2}px`;
+            
+            container.appendChild(memory);
+            
+            // Animation state
+            const state = {
+                yPos: -displayText.length * 2,
+                xPos: startX,
+                speed: 1 + Math.random() * 2,
+                hovered: false,
+                pinned: false
+            };
+            
+            // Mouse events
+            memory.addEventListener('mouseenter', () => {
+                state.hovered = true;
+                speakWithRandomSettings(displayText);
+            });
+            
+            memory.addEventListener('mouseleave', () => {
+                state.hovered = false;
+                if (!state.pinned) {
+                    memory.classList.remove('active');
+                }
+            });
+            
+            memory.addEventListener('click', (e) => {
+                if (e.target === memory || e.target.className.includes('memory-content')) {
+                    state.pinned = !state.pinned;
+                    memory.classList.toggle('active', state.pinned);
+                }
+            });
+            
+            function animate() {
+                if (!state.pinned) {
+                    state.yPos += state.hovered ? 0.2 : state.speed;
+                    
+                    memory.style.top = `${state.yPos}px`;
+                    memory.style.left = `${state.xPos}px`;
+                    
+                    if (state.yPos > window.innerHeight * 0.7) {
+                        const opacity = 1 - (state.yPos - window.innerHeight * 0.7) / (window.innerHeight * 0.3);
+                        memory.style.opacity = opacity;
+                    }
+                    
+                    if (state.yPos > window.innerHeight + 50) {
+                        state.yPos = -displayText.length * 2;
+                        state.xPos = Math.random() * (window.innerWidth - 100);
+                        memory.style.opacity = '1';
+                    }
+                }
+                
+                animationFrameIds.push(requestAnimationFrame(animate));
+            }
+            
+            animate();
+        }
+        
+        function createRain() {
+            const rainDrops = [];
+            const rainCount = 60;
+            
+            function createDrop() {
+                const drop = document.createElement('div');
+                drop.className = 'rain';
+                
+                const left = Math.random() * window.innerWidth;
+                const height = 8 + Math.random() * 20;
+                const opacity = 0.3 + Math.random() * 0.5;
+                const duration = 0.5 + Math.random() * 1.5;
+                
+                drop.style.left = `${left}px`;
+                drop.style.height = `${height}px`;
+                drop.style.opacity = opacity;
+                drop.style.top = `-${height}px`;
+                drop.style.animationDuration = `${duration}s`;
+                
+                rainContainer.appendChild(drop);
+                rainDrops.push(drop);
+                
+                setTimeout(() => {
+                    if (drop.parentNode) {
+                        rainContainer.removeChild(drop);
+                        const index = rainDrops.indexOf(drop);
+                        if (index > -1) rainDrops.splice(index, 1);
+                    }
+                }, duration * 1000);
+            }
+            
+            for (let i = 0; i < rainCount; i++) {
+                setTimeout(createDrop, i * 300);
+            }
+            
+            const rainInterval = setInterval(createDrop, 300);
+            
+            return () => {
+                clearInterval(rainInterval);
+                rainDrops.forEach(drop => {
+                    if (drop.parentNode) rainContainer.removeChild(drop);
+                });
+                rainDrops.length = 0;
+            };
+        }
+        
+        window.addEventListener('beforeunload', () => {
+            cleanupRain();
+            animationFrameIds.forEach(id => cancelAnimationFrame(id));
+        });
+    </script>
+</body>
+</html>
