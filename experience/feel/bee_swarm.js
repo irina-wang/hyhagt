@@ -4,6 +4,11 @@ let words = ['hope', 'you', 'have', 'a', 'good', 'time', 'hope', 'you', 'have', 
 let positionedWords = [];
 let initWidth = 600;
 let initHeight = 450;
+let font;
+
+function preload() {  
+  font = loadFont("../../fonts/Orbitron-VariableFont_wght.ttf");
+}
 
 function setup() {
 
@@ -52,6 +57,7 @@ function draw() {
   for (let w of positionedWords) {
     textSize(w.size);
     text(w.word, w.x, w.y);
+    textFont(font);
   }
   
   // Optional: Draw pose keypoints
