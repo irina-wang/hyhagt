@@ -6,9 +6,17 @@ let fonts = [];
 let isPaused = false;
 let imageID = 'letter_art';
 
+
+// This will use the global variable we set in the HTML
+let memoryText = window.memory_text || "Default text if not set";
+let memoryColor = window.memory_color || "rgba(255, 245, 220, 0.9)";
+
+
 let counter = 0;
 let letters = [];  // Array to store the trail of letters
-let alphabets = ["h","o","p","e"," ", "y","o","u"," ", "h","a","v","e"," ", "a"," ", "g","r","e","a","t", " ", "t","i","m","e"]
+let memory_text = memoryText; // Use the passed memory text
+let alphabets = []
+// let alphabets = ["h","o","p","e"," ", "y","o","u"," ", "h","a","v","e"," ", "a"," ", "g","r","e","a","t", " ", "t","i","m","e"]
 
 function preload() {  
   fonts[0] = loadFont("../../fonts/Barriecito-Regular.ttf");
@@ -19,6 +27,11 @@ function setup() {
   canvas.parent('canvas-container'); // Put canvas in a div
   textColor = getContrastColor(...bgColor);
   textAlign(CENTER, CENTER);
+
+  // Example usage:
+
+  alphabets = parseParagraphToAlphabets(memory_text);
+  console.log(alphabets);
   
   // Create export button OFF-CANVAS
   let exportBtn = createButton('Export Image');
@@ -26,13 +39,28 @@ function setup() {
   exportBtn.mousePressed(exportCanvas);
 }
   
+function parseParagraphToAlphabets(paragraph) {
+  // Convert to lowercase and split into array of characters
+  console.log(paragraph)
+  const chars = paragraph.toLowerCase().split('');
+  
+  // Filter to only include alphabetic characters and spaces
+  const alphabets = chars.filter(char => {
+    // Keep letters a-z or space
+    return (char >= 'a' && char <= 'z') || char === ' ';
+  });
+  
+  return alphabets;
+}
 
 function draw() {
-  background([148, 0, 211]);
+  // background([148, 0, 211]);
+  background([228,212,187]);
   if (!isPaused&&frameCount % 2 === 0) {
     counter +=1 
       
     let letter = alphabets[counter%alphabets.length];  // Pick a random letter from the alphabet
+    console.log(memory_text)
     let fontSize = random(15, 30);  // Random font size
     let font = fonts[0];  // Use the first font
     letters.push(new Letter(letter, fontSize, font));  // Create and add new letter to the trail

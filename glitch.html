@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Pose-Controlled Word Art with Glitch</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.6.0/p5.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.6.0/addons/p5.dom.min.js"></script>
+  <script src="https://unpkg.com/ml5@0.1.1/dist/ml5.min.js" type="text/javascript"></script>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background: #000;
+        overflow: hidden;
+      }
+      #status {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        color: white;
+        font-family: Arial, sans-serif;
+        z-index: 100;
+        text-shadow: 0 0 5px black;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="status">Loading PoseNet model...</div>
+    <script>
+      let poseNet;
+      let video;
+      let poses = [];
+      let words = ['hope', 'you', 'have', 'a', 'good', 'time'];
+      let positionedWords = [];
+      let initWidth = 600;
+      let initHeight = 450;
+      let glitchIntensity = 0;
+      let glitchGraphics;
+      let bodyPixels = [];
+  
+      function setup() {
+        let canvas = createCanvas(initWidth, initHeight);
+        canvas.position(windowWidth/2-initWidth/2, windowHeight/2-initHeight/2);
+        
+        video = createCapture(VIDEO);
+        video.size(width, height);
+        video.hide();
+        
+        // Create separate graphics buffer for glitch effects
+        glitchGraphics = createGraphics(width, height);
+        
+        // Initialize PoseNet
+        poseNet = ml5.poseNet(video, modelReady);
+        poseNet.on('pose', function(results) {
+          poses = results;
+        });
+        
+        // Initialize words
+        for (let i = 0; i < 50; i++) {
+          positionedWords.push({
+            word: random(words),
+            x: random(width),
+            y: random(height),
+            size: random(12, 36),
+            targetX: 0,
+            targetY: 0
+          });
+        }
+      }
+  
+      function modelReady() {
+        select('#status').html('Model Loaded - Raise arms to increase glitch');
+      }
+  
+      function draw() {
+        background(0);
+        
+        // Update glitch intensity based on arm position
+        updateGlitchEffect();
+        
+        // Apply glitch effect to body video feed
+        glitchBodyVideo();
+        
+        // Draw the glitched video
+        image(glitchGraphics, 0, 0);
+        
+        // Draw all words (clean, no glitch)
+        drawWords();
+        
+        // Display status
+        drawStatus();
+      }
+  
+      function glitchBodyVideo() {
+        // Load video pixels
+        video.loadPixels();
+        bodyPixels = video.pixels;
+        
+        // Apply glitch effects to the graphics buffer
+        glitchGraphics.clear();
+        glitchGraphics.loadPixels();
+        
+        // Digital distortion effect
+        for (let y = 0; y < video.height; y++) {
+          // Horizontal wave distortion
+          let waveOffset = floor(sin(y * 0.05 + frameCount * 0.1) * 10 * glitchIntensity);
+          
+          for (let x = 0; x < video.width; x++) {
+            let origX = constrain(x + waveOffset, 0, video.width-1);
+            let index = (y * video.width + origX) * 4;
+            
+            // RGB channel separation
+            let r = bodyPixels[index];
+            let g = bodyPixels[index + 1];
+            let b = bodyPixels[index + 2];
+            
+            // Apply glitch effects
+            let glitchIndex = (y * width + x) * 4;
+            
+            // Random pixel sorting
+            if (random() < glitchIntensity * 0.1) {
+              let offset = floor(random(-20, 20));
+              index = constrain(index + offset * 4, 0, bodyPixels.length - 4);
+            }
+            
+            // Write to glitch buffer
+            glitchGraphics.pixels[glitchIndex] = r;
+            glitchGraphics.pixels[glitchIndex + 1] = g;
+            glitchGraphics.pixels[glitchIndex + 2] = b;
+            glitchGraphics.pixels[glitchIndex + 3] = 255;
+          }
+        }
+        
+        glitchGraphics.updatePixels();
+        
+        // Add scanlines
+        glitchGraphics.stroke(0, 150);
+        glitchGraphics.strokeWeight(1);
+        for (let y = 0; y < height; y += 3) {
+          glitchGraphics.line(0, y, width, y);
+        }
+        
+        // Add random blocks (data moshing effect)
+        if (glitchIntensity > 0.5) {
+          glitchGraphics.noStroke();
+          for (let i = 0; i < glitchIntensity * 5; i++) {
+            let x = random(width);
+            let y = random(height);
+            let w = random(5, 50);
+            let h = random(5, 20);
+            glitchGraphics.copy(
+              glitchGraphics, 
+              x, y, w, h, 
+              x + random(-20, 20), y + random(-10, 10), w, h
+            );
+          }
+        }
+      }
+  
+      function updateGlitchEffect() {
+        // Base glitch pulse
+        glitchIntensity = map(sin(frameCount * 0.05), -1, 1, 0.1, 0.3);
+        
+        // Increase glitch when arms are raised
+        if (poses.length > 0) {
+          let pose = poses[0].pose;
+          let leftWrist = pose.keypoints[9];
+          let rightWrist = pose.keypoints[10];
+          let nose = pose.keypoints[0];
+          
+          if (leftWrist.score > 0.5 && rightWrist.score > 0.5 && nose.score > 0.5) {
+            // Calculate how high arms are raised (0-1)
+            let armHeight = map(min(leftWrist.position.y, rightWrist.position.y), 
+                               0, nose.position.y, 1, 0);
+            glitchIntensity = constrain(glitchIntensity + armHeight * 0.7, 0, 1);
+          }
+        }
+      }
+  
+      function drawWords() {
+        if (poses.length > 0) {
+          let pose = poses[0].pose;
+          
+          // Get bounding area of the pose
+          let minX = width, maxX = 0, minY = height, maxY = 0;
+          for (let keypoint of pose.keypoints) {
+            if (keypoint.position.x < minX) minX = keypoint.position.x;
+            if (keypoint.position.x > maxX) maxX = keypoint.position.x;
+            if (keypoint.position.y < minY) minY = keypoint.position.y;
+            if (keypoint.position.y > maxY) maxY = keypoint.position.y;
+          }
+          
+          // Add padding
+          let padding = 50;
+          minX = constrain(minX - padding, 0, width);
+          maxX = constrain(maxX + padding, 0, width);
+          minY = constrain(minY - padding, 0, height);
+          maxY = constrain(maxY + padding, 0, height);
+          
+          // Update word positions
+          for (let w of positionedWords) {
+            // Move toward target with easing
+            if (frameCount % 30 == 0 || (w.targetX == 0 && w.targetY == 0)) {
+              if (random() > 0.3) {
+                // Position in bounding box
+                w.targetX = random(minX, maxX);
+                w.targetY = random(minY, maxY);
+              } else {
+                // Position near a random keypoint
+                let kp = random(pose.keypoints);
+                w.targetX = kp.position.x + random(-20, 20);
+                w.targetY = kp.position.y + random(-20, 20);
+              }
+            }
+            
+            w.x = lerp(w.x, w.targetX, 0.05);
+            w.y = lerp(w.y, w.targetY, 0.05);
+            
+            // Draw word
+            push();
+            textSize(w.size);
+            textAlign(CENTER, CENTER);
+            fill(255, 200);
+            noStroke();
+            text(w.word, w.x, w.y);
+            pop();
+          }
+        }
+      }
+  
+      function drawStatus() {
+        push();
+        fill(255);
+        textSize(14);
+        textAlign(LEFT, TOP);
+        text("GLITCH INTENSITY: " + nf(glitchIntensity, 1, 2), 20, 20);
+        pop();
+      }
+  
+      function windowResized() {
+        resizeCanvas(initWidth, initHeight);
+        canvas.position(windowWidth/2-initWidth/2, windowHeight/2-initHeight/2);
+      }
+    </script>
+  </body>
+  </html>

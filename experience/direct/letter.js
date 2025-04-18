@@ -1,5 +1,9 @@
-let bgColor = [148, 0, 211]; // Purple
-let textColor;
+// let memoryColor = window.memory_color || "rgba(255, 245, 220, 0.9)";
+
+// let bgColor = [148, 0, 211]; // Purple
+let bgColor = memoryColor;
+let textColor = memoryColor;
+
 
 class Letter {
   constructor(letter, fontSize, font) {
@@ -33,7 +37,10 @@ class Letter {
   
   // Display the letter
   display() {
-    textColor = getContrastColor(148, 0, 211); // Spread operator
+    console.log(memoryColor);
+    textColor = getContrastColor(memoryColor[0], memoryColor[1], memoryColor[2]); // Spread operator
+
+    // textColor = getContrastColor(148, 0, 211); // Spread operator
 
     fill(textColor[0], textColor[1], textColor[2], this.alpha);  // White color with fading alpha
     noStroke();

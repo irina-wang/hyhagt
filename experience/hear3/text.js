@@ -123,7 +123,7 @@ function draw() {
         let noteIndex = floor(map(centerY, 0, height, 0, rightHandNotes.length));
         noteIndex = constrain(noteIndex, 0, rightHandNotes.length - 1);
         currentRightNote = rightHandNotes[noteIndex];
-        playNote(currentRightNote, 0.7);
+        playNote(currentRightNote, 0.5);
         
         // Word cycling logic
         currentWordIndex = (currentWordIndex + 1) % words.length;

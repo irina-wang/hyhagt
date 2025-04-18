@@ -1,21 +1,10 @@
-<!--
- Copyright (c) 2018 ml5
- 
- This software is released under the MIT License.
- https://opensource.org/licenses/MIT
--->
-<!-- black cloud / direct words  -->
-
 <html>
-
 <head>
   <meta charset="UTF-8">
   <title>Feel the bee swarm</title>
-
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.6.0/p5.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.6.0/addons/p5.dom.min.js"></script>
   <script src="https://unpkg.com/ml5@0.1.1/dist/ml5.min.js" type="text/javascript"></script>
-  <link rel="stylesheet" type="text/css" href="style.css">
   <style>
     body {
       margin: 0;
@@ -58,18 +47,65 @@
         width: 150px;
         padding: 10px;
     }
-
   </style>
 </head>
 <body>
-    <main>
-    </main>
-    <script src="sketch.js"></script>
-    <script src="letter.js"></script>
-  </body>
-  
   <div id="app">
-  <div id="controls-container"></div>
-  <div id="canvas-container"></div>
-</div>
+    <div id="controls-container">
+      <h1 id="memory-title">Memory</h1>
+      <p id="memory-text"></p>
+      <button id="back-btn">Back to Memories</button>
+    </div>
+    <div id="canvas-container"></div>
+  </div>
+
+  <script>
+    // Get the stored memory data
+    const memoryData = JSON.parse(localStorage.getItem('currentMemory'));
+    
+    // Create global variables for sketch.js
+    window.memory_text = memoryData ? memoryData.text : "Default memory text";
+    window.memory_color = memoryData ? memoryData.color : "rgba(255, 245, 220, 0.9)";
+    
+    // Display the memory (updated to match your previous working version)
+    if (memoryData) {
+        // For the new structure
+        document.getElementById('memory-text').textContent = memoryData.text;
+        document.getElementById('memory-text').style.color = memoryData.color;
+        
+        // For the old structure (if elements exist)
+        const memoryDisplay = document.getElementById('memoryDisplay');
+        if (memoryDisplay) {
+            memoryDisplay.style.borderLeftColor = memoryData.color;
+            memoryDisplay.innerHTML = `
+                <h2 style="color: ${memoryData.color}">"${memoryData.text}"</h2>
+            `;
+        }
+    } else {
+        // Error handling for both versions
+        const fallbackElement = document.getElementById('memoryDisplay') || 
+                               document.getElementById('memory-text');
+        if (fallbackElement) {
+            fallbackElement.innerHTML = `
+                <p>No memory data found.</p>
+                <p>Go back and select a memory first.</p>
+            `;
+        }
+    }
+    
+    // Back button functionality (works with either structure)
+    const backBtn = document.getElementById('back-btn');
+    if (backBtn) {
+        backBtn.addEventListener('click', () => {
+            window.history.back();
+        });
+    }
+</script>
+
+
+
+  
+  <script src="sketch.js"></script>
+  <script src="letter.js"></script>
+</body>
 </html>

@@ -257,424 +257,584 @@
         <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-16.mp3" type="audio/mpeg">
     </audio>
 
-    <script>
-        // DOM Elements
-        const container = document.getElementById('container');
-        const rainContainer = document.getElementById('rain-container');
-        const promptDiv = document.getElementById('prompt');
-        const memoryInput = document.getElementById('memory-input');
-        const musicControl = document.getElementById('music-control');
-        const backgroundMusic = document.getElementById('background-music');
-        const audioVisualizer = document.getElementById('audio-visualizer');
-        const colorPicker = document.getElementById('color-picker');
-        const memoryColorInput = document.getElementById('memory-color');
-        const colorPreview = document.getElementById('color-preview');
+<script>
+    // ======================
+    // Configuration
+    // ======================
+    const config = {
+        csvFilePath: 'memories.csv', // Path to your CSV file
+        maxMemories: 100,            // Maximum memories to display
+        memorySources: ['local', 'csv'], // Load order: localStorage first, then CSV
+        syncInterval: 300000         // 5 minutes (for CSV re-loading)
+    };
+
+    // ======================
+    // DOM Elements
+    // ======================
+    const container = document.getElementById('container');
+    const rainContainer = document.getElementById('rain-container');
+    const promptDiv = document.getElementById('prompt');
+    const memoryInput = document.getElementById('memory-input');
+    const musicControl = document.getElementById('music-control');
+    const backgroundMusic = document.getElementById('background-music');
+    const audioVisualizer = document.getElementById('audio-visualizer');
+    const colorPicker = document.getElementById('color-picker');
+    const memoryColorInput = document.getElementById('memory-color');
+    const colorPreview = document.getElementById('color-preview');
+    
+    // ======================
+    // State
+    // ======================
+    let memories = [];
+    let animationFrameIds = [];
+    let isMusicPlaying = false;
+    let pendingMemory = '';
+    let cleanupRain = () => {};
+
+    // ======================
+    // Initialization
+    // ======================
+    document.addEventListener('DOMContentLoaded', async () => {
+        setupMusic();
+        setupEventListeners();
+        memoryInput.focus();
+        cleanupRain = createRain();
+        addExportButton();
+        addImportButton();
         
-        // State
-        let memories = [];
-        let animationFrameIds = [];
-        let isMusicPlaying = false;
-        let pendingMemory = '';
-        let cleanupRain = () => {};
+        // Initial load of memories
+        await loadAllMemories();
+    });
 
-        // Initialize
-        // Modified memory data structure
-        function createMemoryData(text, colorScale) {
-            const blue = Math.round(255 * (1 - colorScale / 10));
-            const green = Math.round(255 * (colorScale / 10));
-            return {
-                text: text,
-                color: `rgba(0, ${green}, ${blue}, 0.9)`,
-                colorScale: colorScale,
-                timestamp: new Date().toISOString(),
-                id: Date.now().toString()
-            };
-        }
+    // ======================
+    // Memory Data Functions
+    // ======================
+    function createMemoryData(text, colorScale, source = 'local', timestamp = null) {
+        const blue = Math.round(255 * (1 - colorScale / 10));
+        const green = Math.round(255 * (colorScale / 10));
+        return {
+            text: text,
+            color: `rgba(0, ${green}, ${blue}, 0.9)`,
+            colorScale: colorScale,
+            timestamp: timestamp || new Date().toISOString(),
+            id: Date.now().toString(),
+            source: source
+        };
+    }
 
-        // Modified confirmColor function
-        function confirmColor() {
-            colorPicker.style.display = 'none';
-            const memoryData = createMemoryData(
-                pendingMemory, 
-                parseFloat(memoryColorInput.value)
-            );
+    // ======================
+    // Memory Loading System
+    // ======================
+    async function loadAllMemories() {
+        try {
+            // Clear displayed memories but keep in memory
+            clearDisplayedMemories();
             
-            memories.push(memoryData);
+            // Try each source in order
+            for (const source of config.memorySources) {
+                if (source === 'local') {
+                    loadLocalMemories();
+                } else if (source === 'csv') {
+                    await loadCSVMemories();
+                }
+            }
+            
+            // Sort memories by timestamp (newest first)
+            memories.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            
+            // Limit number of displayed memories
+            const displayMemories = memories.slice(0, config.maxMemories);
+            
+            // Display them
+            displayMemories.forEach(memory => {
+                createMemoryElement(memory);
+            });
+            
+            // Save combined memories to localStorage
             localStorage.setItem('rainyMemories', JSON.stringify(memories));
-            createMemoryElement(memoryData);
+            
+        } catch (error) {
+            console.error('Error loading memories:', error);
+        }
+    }
+
+    function clearDisplayedMemories() {
+        // Cancel all animations
+        animationFrameIds.forEach(id => cancelAnimationFrame(id));
+        animationFrameIds = [];
+        
+        // Remove all memory elements
+        const memoryElements = document.querySelectorAll('.memory');
+        memoryElements.forEach(el => el.remove());
+    }
+
+    function loadLocalMemories() {
+        const saved = localStorage.getItem('rainyMemories');
+        if (saved) {
+            try {
+                const localMemories = JSON.parse(saved);
+                
+                // Merge with existing memories, avoiding duplicates
+                localMemories.forEach(localMemory => {
+                    if (!memories.some(m => m.id === localMemory.id)) {
+                        memories.push({
+                            ...localMemory,
+                            source: 'local'
+                        });
+                    }
+                });
+                
+            } catch (e) {
+                console.error("Error loading local memories:", e);
+            }
+        }
+    }
+
+    async function loadCSVMemories() {
+        try {
+            const response = await fetch(config.csvFilePath);
+            if (!response.ok) {
+                throw new Error(`Failed to load CSV: ${response.status}`);
+            }
+            
+            const csvData = await response.text();
+            const rows = csvData.split('\n');
+            
+            console.log(`Found ${rows.length} rows in CSV`);
+            
+            const newMemories = [];
+            for (let i = 0; i < rows.length; i++) {
+                // Simple CSV parsing (handles quoted values)
+                const row = rows[i].match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || [];
+                
+                // Skip header row if exists
+                if (i === 0 && row[0].toLowerCase().includes('timestamp')) continue;
+                
+                // Ensure we have at least timestamp, text, and feeling
+                if (row.length >= 3 && row[1]) {
+                    const timestamp = row[0] || new Date().toISOString();
+                    const text = row[1].replace(/^"|"$/g, '').trim(); // Remove quotes
+                    const colorScale = Math.min(10, Math.max(0, parseFloat(row[2]) || 5));
+                    
+                    const memory = {
+                        text: text,
+                        colorScale: colorScale,
+                        timestamp: timestamp,
+                        id: `csv-${i}-${timestamp}`,
+                        source: 'csv'
+                    };
+                    
+                    // Calculate color
+                    const blue = Math.round(255 * (1 - memory.colorScale / 10));
+                    const green = Math.round(255 * (memory.colorScale / 10));
+                    memory.color = `rgba(0, ${green}, ${blue}, 0.9)`;
+                    
+                    if (!memories.some(m => m.id === memory.id)) {
+                        newMemories.push(memory);
+                    }
+                }
+            }
+            
+            console.log(`Added ${newMemories.length} new memories from CSV`);
+            memories.push(...newMemories);
+            
+        } catch (error) {
+            console.error('CSV Loading Error:', error);
+            alert('Failed to load CSV file. Please check console for details.');
+        }
+    }
+
+    // ======================
+    // Memory Display Functions (unchanged from your original)
+    // ======================
+    function createMemoryElement(memoryData) {
+    const memory = document.createElement('div');
+    memory.className = 'memory';
+    
+    // Create content container
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'memory-content';
+    contentDiv.textContent = memoryData.text;
+    memory.style.color = memoryData.color;
+    memory.dataset.id = memoryData.id;
+
+    // Create action buttons
+    const actionsDiv = document.createElement('div');
+    actionsDiv.className = 'memory-actions';
+    
+    // Click handler that gets only text and color from DOM
+    function handleMemoryAction(e, mode) {
+        e.stopPropagation();
+        
+        const memoryElement = e.target.closest('.memory');
+        const memoryText = memoryElement.querySelector('.memory-content').textContent;
+        const memoryColor = memoryElement.style.color;
+        
+        navigateToMemory({
+            text: memoryText,
+            color: memoryColor
+        }, mode);
+    }
+    
+    const feelBtn = document.createElement('button');
+    feelBtn.className = 'memory-btn';
+    feelBtn.textContent = 'Feel';
+    feelBtn.addEventListener('click', (e) => handleMemoryAction(e, 'feel'));
+    
+    const hearBtn = document.createElement('button');
+    hearBtn.className = 'memory-btn';
+    hearBtn.textContent = 'Hear';
+    hearBtn.addEventListener('click', (e) => handleMemoryAction(e, 'hear'));
+    
+    const directBtn = document.createElement('button');
+    directBtn.className = 'memory-btn';
+    directBtn.textContent = 'Direct';
+    directBtn.addEventListener('click', (e) => handleMemoryAction(e, 'direct'));
+    
+    actionsDiv.appendChild(feelBtn);
+    actionsDiv.appendChild(hearBtn);
+    actionsDiv.appendChild(directBtn);
+    
+    memory.appendChild(contentDiv);
+    memory.appendChild(actionsDiv);
+
+    // Rest of your existing animation code remains the same...
+    const startX = Math.random() * (window.innerWidth - 100);
+    memory.style.left = `${startX}px`;
+    memory.style.top = `-${memoryData.text.length * 2}px`;
+    
+    container.appendChild(memory);
+    
+    const state = {
+        yPos: -memoryData.text.length * 2,
+        xPos: startX,
+        speed: 1 + Math.random() * 2,
+        hovered: false,
+        pinned: false
+    };
+    
+    memory.addEventListener('mouseenter', () => {
+        state.hovered = true;
+    });
+    
+    memory.addEventListener('mouseleave', () => {
+        state.hovered = false;
+        if (!state.pinned) {
+            memory.classList.remove('active');
+        }
+    });
+    
+    memory.addEventListener('click', (e) => {
+        if (e.target === memory || e.target.className.includes('memory-content')) {
+            state.pinned = !state.pinned;
+            memory.classList.toggle('active', state.pinned);
+        }
+    });
+    
+    function animate() {
+        if (!state.pinned) {
+            state.yPos += state.hovered ? 0.2 : state.speed;
+            memory.style.top = `${state.yPos}px`;
+            memory.style.left = `${state.xPos}px`;
+            
+            if (state.yPos > window.innerHeight * 0.7) {
+                const opacity = 1 - (state.yPos - window.innerHeight * 0.7) / (window.innerHeight * 0.3);
+                memory.style.opacity = opacity;
+            }
+            
+            if (state.yPos > window.innerHeight + 50) {
+                state.yPos = -memoryData.text.length * 2;
+                state.xPos = Math.random() * (window.innerWidth - 100);
+                memory.style.opacity = '1';
+            }
+        }
+        
+        animationFrameIds.push(requestAnimationFrame(animate));
+    }
+    
+    animate();
+}
+    
+
+
+
+
+
+
+
+    // ======================
+    // UI Functions (unchanged from your original)
+    // ======================
+    function addExportButton() {
+        const exportBtn = document.createElement('button');
+        exportBtn.textContent = 'Export Memories';
+        exportBtn.style = `
+            margin-top: 15px;
+            padding: 8px 15px;
+            background: rgba(20, 30, 50, 0.7);
+            color: #fff9e6;
+            border: 1px solid rgba(150, 130, 100, 0.5);
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: 'Patrick Hand', cursive;
+        `;
+        exportBtn.addEventListener('click', exportMemories);
+        promptDiv.appendChild(exportBtn);
+    }
+
+    function addImportButton() {
+        const importBtn = document.createElement('button');
+        importBtn.textContent = 'Import Memories';
+        importBtn.style = `
+            margin-top: 15px;
+            padding: 8px 15px;
+            background: rgba(20, 30, 50, 0.7);
+            color: #fff9e6;
+            border: 1px solid rgba(150, 130, 100, 0.5);
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: 'Patrick Hand', cursive;
+            margin-left: 10px;
+        `;
+        importBtn.addEventListener('click', () => {
+            // Create file input
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = '.json,.csv';
+            fileInput.style.display = 'none';
+            
+            fileInput.addEventListener('change', async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                try {
+                    const fileContent = await readFile(file);
+                    
+                    if (file.name.endsWith('.json')) {
+                        const importedMemories = JSON.parse(fileContent);
+                        if (Array.isArray(importedMemories)) {
+                            importedMemories.forEach(memory => {
+                                if (!memories.some(m => m.id === memory.id)) {
+                                    memories.push({
+                                        ...memory,
+                                        source: 'imported'
+                                    });
+                                }
+                            });
+                            await loadAllMemories();
+                            alert(`Imported ${importedMemories.length} memories successfully!`);
+                        }
+                    } else if (file.name.endsWith('.csv')) {
+                        // Create temporary URL for the CSV file
+                        config.csvFilePath = URL.createObjectURL(file);
+                        await loadAllMemories();
+                        alert('Imported CSV memories successfully!');
+                    }
+                } catch (error) {
+                    console.error('Import error:', error);
+                    alert('Failed to import memories. Please check the file format.');
+                }
+                
+                document.body.removeChild(fileInput);
+            });
+            
+            document.body.appendChild(fileInput);
+            fileInput.click();
+        });
+        
+        promptDiv.appendChild(importBtn);
+    }
+
+    function exportMemories() {
+        const dataStr = JSON.stringify(memories, null, 2);
+        const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+        
+        const exportName = `rainy-memories-${new Date().toISOString().slice(0,10)}.json`;
+        
+        const linkElement = document.createElement('a');
+        linkElement.setAttribute('href', dataUri);
+        linkElement.setAttribute('download', exportName);
+        linkElement.click();
+    }
+
+    function readFile(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.onerror = (e) => reject(e);
+            reader.readAsText(file);
+        });
+    }
+
+    function updateColorPreview() {
+        const scaleValue = memoryColorInput.value;
+        const blue = Math.round(255 * (1 - scaleValue / 10));
+        const green = Math.round(255 * (scaleValue / 10));
+        colorPreview.style.background = `rgb(0, ${green}, ${blue})`;
+    }
+
+    function confirmColor() {
+        colorPicker.style.display = 'none';
+        const memoryData = createMemoryData(
+            pendingMemory, 
+            parseFloat(memoryColorInput.value)
+        );
+        
+        memories.push(memoryData);
+        localStorage.setItem('rainyMemories', JSON.stringify(memories));
+        createMemoryElement(memoryData);
+        
+        const hint = document.querySelector('.submit-hint');
+        hint.textContent = 'Memory saved! Press Enter to share';
+    }
+
+    // ======================
+    // Event Handlers (unchanged from your original)
+    // ======================
+    function setupEventListeners() {
+        memoryInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') addMemory();
+        });
+        
+        memoryColorInput.addEventListener('input', updateColorPreview);
+        
+        document.addEventListener('click', (e) => {
+            if (!colorPicker.contains(e.target) && e.target !== memoryInput) {
+                colorPicker.style.display = 'none';
+            }
+        });
+    }
+
+    function addMemory() {
+        const memoryText = memoryInput.value.trim();
+        if (memoryText) {
+            pendingMemory = memoryText;
+            colorPicker.style.display = 'block';
+            updateColorPreview();
+            memoryInput.value = '';
             
             const hint = document.querySelector('.submit-hint');
-            hint.textContent = 'Memory saved! Press Enter to share';
+            hint.textContent = 'Choose a color for your memory';
         }
+    }
 
-        // Modified loadMemories function
-        function loadMemories() {
-            const saved = localStorage.getItem('rainyMemories');
-            if (saved) {
-                try {
-                    memories = JSON.parse(saved);
-                    // Convert old format to new format if needed
-                    memories = memories.map(memory => {
-                        if (typeof memory === 'string') {
-                            return createMemoryData(memory, 5); // Default color scale
-                        }
-                        // Backward compatibility for older objects
-                        if (!memory.timestamp) {
-                            memory.timestamp = new Date().toISOString();
-                        }
-                        if (!memory.colorScale) {
-                            // Extract scale from color if possible
-                            const match = memory.color.match(/rgba\(0, (\d+), (\d+)/);
-                            if (match) {
-                                const green = parseInt(match[1]);
-                                memory.colorScale = (green / 255 * 10).toFixed(1);
-                            } else {
-                                memory.colorScale = 5; // Default
-                            }
-                        }
-                        return memory;
-                    });
-                    localStorage.setItem('rainyMemories', JSON.stringify(memories));
-                    
-                    memories.forEach(memory => {
-                        createMemoryElement(memory);
-                    });
-                } catch (e) {
-                    console.error("Error loading memories:", e);
-                }
+    // function navigateToMemory(memoryData, mode) {
+    //     const memoryInfo = {
+    //         text: memoryData.text,
+    //         color: memoryData.color,
+    //         mode: mode
+    //     };
+        
+    //     localStorage.setItem('currentMemory', JSON.stringify(memoryInfo));
+    //     window.location.href = `experience/${mode}/index.html`;
+    //     // window.location.href = `experience/test/index.html`;
+
+    // }
+    function navigateToMemory(memoryInfo, mode) {
+        // Store in localStorage (only text and color needed)
+        localStorage.setItem('currentMemory', JSON.stringify({
+            text: memoryInfo.text,
+            color: memoryInfo.color
+        }));
+        
+        // Navigate to the experience page
+        window.location.href = `experience/${mode}/index.html`;
+    }
+
+    // ======================
+    // Audio & Effects (unchanged from your original)
+    // ======================
+    function setupMusic() {
+        const enableAudio = () => {
+            backgroundMusic.volume = 0.3;
+            backgroundMusic.play().then(() => {
+                isMusicPlaying = true;
+                musicControl.innerHTML = '<i class="fas fa-cloud-rain"></i>';
+                audioVisualizer.style.display = 'block';
+            }).catch(e => {
+                console.log("Audio playback failed:", e);
+                musicControl.innerHTML = '<i class="fas fa-volume-mute"></i>';
+            });
+            document.body.removeEventListener('click', enableAudio);
+            document.body.removeEventListener('keydown', enableAudio);
+        };
+        
+        document.body.addEventListener('click', enableAudio, { once: true });
+        document.body.addEventListener('keydown', enableAudio, { once: true });
+        
+        musicControl.addEventListener('click', toggleAudio);
+        
+        function toggleAudio() {
+            if (isMusicPlaying) {
+                backgroundMusic.pause();
+                musicControl.innerHTML = '<i class="fas fa-cloud"></i>';
+                audioVisualizer.style.display = 'none';
+            } else {
+                backgroundMusic.play();
+                musicControl.innerHTML = '<i class="fas fa-cloud-rain"></i>';
+                audioVisualizer.style.display = 'block';
             }
+            isMusicPlaying = !isMusicPlaying;
         }
+    }
 
-        // New function to export memories
-        function exportMemories() {
-            const dataStr = JSON.stringify(memories, null, 2);
-            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+    function createRain() {
+        const rainDrops = [];
+        const rainCount = 60;
+        
+        function createDrop() {
+            const drop = document.createElement('div');
+            drop.className = 'rain';
             
-            const exportName = `rainy-memories-${new Date().toISOString().slice(0,10)}.json`;
+            const left = Math.random() * window.innerWidth;
+            const height = 8 + Math.random() * 20;
+            const opacity = 0.3 + Math.random() * 0.5;
+            const duration = 0.5 + Math.random() * 1.5;
             
-            const linkElement = document.createElement('a');
-            linkElement.setAttribute('href', dataUri);
-            linkElement.setAttribute('download', exportName);
-            linkElement.click();
-        }
-
-        // Add export button to your prompt div
-        function addExportButton() {
-            const exportBtn = document.createElement('button');
-            exportBtn.textContent = 'Export Memories';
-            exportBtn.style = `
-                margin-top: 15px;
-                padding: 8px 15px;
-                background: rgba(20, 30, 50, 0.7);
-                color: #fff9e6;
-                border: 1px solid rgba(150, 130, 100, 0.5);
-                border-radius: 5px;
-                cursor: pointer;
-                font-family: 'Patrick Hand', cursive;
-            `;
-            exportBtn.addEventListener('click', exportMemories);
-            promptDiv.appendChild(exportBtn);
-        }
-
-        // Initialize with export button
-        document.addEventListener('DOMContentLoaded', () => {
-            loadMemories();
-            setupMusic();
-            setupEventListeners();
-            memoryInput.focus();
-            cleanupRain = createRain();
-            addExportButton(); // Add this line
-        });
-
-        function setupEventListeners() {
-            memoryInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') addMemory();
-            });
+            drop.style.left = `${left}px`;
+            drop.style.height = `${height}px`;
+            drop.style.opacity = opacity;
+            drop.style.top = `-${height}px`;
+            drop.style.animationDuration = `${duration}s`;
             
-            memoryColorInput.addEventListener('input', updateColorPreview);
+            rainContainer.appendChild(drop);
+            rainDrops.push(drop);
             
-            document.addEventListener('click', (e) => {
-                if (!colorPicker.contains(e.target) && e.target !== memoryInput) {
-                    colorPicker.style.display = 'none';
+            setTimeout(() => {
+                if (drop.parentNode) {
+                    rainContainer.removeChild(drop);
+                    const index = rainDrops.indexOf(drop);
+                    if (index > -1) rainDrops.splice(index, 1);
                 }
-            });
-        }
-
-        function updateColorPreview() {
-            const scaleValue = memoryColorInput.value;
-            const blue = Math.round(255 * (1 - scaleValue / 10));
-            const green = Math.round(255 * (scaleValue / 10));
-            colorPreview.style.background = `rgb(0, ${green}, ${blue})`;
-        }
-
-        function confirmColor() {
-            colorPicker.style.display = 'none';
-            const scaleValue = memoryColorInput.value;
-            const blue = Math.round(255 * (1 - scaleValue / 10));
-            const green = Math.round(255 * (scaleValue / 10));
-            const memoryData = { 
-                text: pendingMemory, 
-                color: `rgba(0, ${green}, ${blue}, 0.9)`,
-                id: Date.now().toString()
-            };
-            memories.push(memoryData);
-            localStorage.setItem('rainyMemories', JSON.stringify(memories));
-            createMemoryElement(memoryData);
-            
-            const hint = document.querySelector('.submit-hint');
-            hint.textContent = 'Memory saved! Press Enter to share';
+            }, duration * 1000);
         }
         
-        function setupMusic() {
-            const enableAudio = () => {
-                backgroundMusic.volume = 0.3;
-                backgroundMusic.play().then(() => {
-                    isMusicPlaying = true;
-                    musicControl.innerHTML = '<i class="fas fa-cloud-rain"></i>';
-                    audioVisualizer.style.display = 'block';
-                }).catch(e => {
-                    console.log("Audio playback failed:", e);
-                    musicControl.innerHTML = '<i class="fas fa-volume-mute"></i>';
-                });
-                document.body.removeEventListener('click', enableAudio);
-                document.body.removeEventListener('keydown', enableAudio);
-            };
-            
-            document.body.addEventListener('click', enableAudio, { once: true });
-            document.body.addEventListener('keydown', enableAudio, { once: true });
-            
-            musicControl.addEventListener('click', toggleAudio);
-            
-            function toggleAudio() {
-                if (isMusicPlaying) {
-                    backgroundMusic.pause();
-                    musicControl.innerHTML = '<i class="fas fa-cloud"></i>';
-                    audioVisualizer.style.display = 'none';
-                } else {
-                    backgroundMusic.play();
-                    musicControl.innerHTML = '<i class="fas fa-cloud-rain"></i>';
-                    audioVisualizer.style.display = 'block';
-                }
-                isMusicPlaying = !isMusicPlaying;
-            }
+        // Initial rain
+        for (let i = 0; i < rainCount; i++) {
+            setTimeout(createDrop, i * 300);
         }
         
-        function loadMemories() {
-            const saved = localStorage.getItem('rainyMemories');
-            if (saved) {
-                try {
-                    memories = JSON.parse(saved);
-                    memories.forEach(memory => {
-                        if (typeof memory === 'string') {
-                            createMemoryElement(memory);
-                        } else {
-                            createMemoryElement(memory);
-                        }
-                    });
-                } catch (e) {
-                    console.error("Error loading memories:", e);
-                }
-            }
-        }
+        // Continuous rain
+        const rainInterval = setInterval(createDrop, 300);
         
-        function addMemory() {
-            const memoryText = memoryInput.value.trim();
-            if (memoryText) {
-                pendingMemory = memoryText;
-                colorPicker.style.display = 'block';
-                updateColorPreview();
-                memoryInput.value = '';
-                
-                const hint = document.querySelector('.submit-hint');
-                hint.textContent = 'Choose a color for your memory';
-            }
-        }
-        
-        function createMemoryElement(memoryData) {
-            const memory = document.createElement('div');
-            memory.className = 'memory';
-            
-            // Create content container
-            const contentDiv = document.createElement('div');
-            contentDiv.className = 'memory-content';
-            
-            // Format text
-            let displayText = typeof memoryData === 'string' ? memoryData : memoryData.text;
-            contentDiv.textContent = displayText;
-            
-            if (typeof memoryData !== 'string') {
-                memory.style.color = memoryData.color;
-                memory.dataset.id = memoryData.id;
-            }
+        // Cleanup function
+        return () => {
+            clearInterval(rainInterval);
+            rainDrops.forEach(drop => {
+                if (drop.parentNode) rainContainer.removeChild(drop);
+            });
+            rainDrops.length = 0;
+        };
+    }
 
-            // Create action buttons
-            const actionsDiv = document.createElement('div');
-            actionsDiv.className = 'memory-actions';
-            
-            const feelBtn = document.createElement('button');
-            feelBtn.className = 'memory-btn';
-            feelBtn.textContent = 'Feel';
-            feelBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                navigateToMemory(memoryData, 'feel');
-            });
-            
-            const hearBtn = document.createElement('button');
-            hearBtn.className = 'memory-btn';
-            hearBtn.textContent = 'Hear';
-            hearBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                navigateToMemory(memoryData, 'hear');
-            });
-            
-            const directBtn = document.createElement('button');
-            directBtn.className = 'memory-btn';
-            directBtn.textContent = 'Direct';
-            directBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                navigateToMemory(memoryData, 'direct');
-            });
-            
+    // ======================
+    // Cleanup (unchanged from your original)
+    // ======================
+    window.addEventListener('beforeunload', () => {
+        cleanupRain();
+        animationFrameIds.forEach(id => cancelAnimationFrame(id));
+    });
+</script>
 
-            actionsDiv.appendChild(feelBtn);
-            actionsDiv.appendChild(hearBtn);
-            actionsDiv.appendChild(directBtn);
-
-            
-            memory.appendChild(contentDiv);
-            memory.appendChild(actionsDiv);
-
-            // Initial position - start above the viewport
-            const startX = Math.random() * (window.innerWidth - 100);
-            memory.style.left = `${startX}px`;
-            memory.style.top = `-${displayText.length * 2}px`; // Adjusted starting position
-            
-            container.appendChild(memory);
-            
-            // Animation state
-            const state = {
-                yPos: -displayText.length * 2,
-                xPos: startX,
-                speed: 1 + Math.random() * 2,
-                hovered: false,
-                pinned: false
-            };
-            
-            // Mouse events
-            memory.addEventListener('mouseenter', () => {
-                state.hovered = true;
-            });
-            
-            memory.addEventListener('mouseleave', () => {
-                state.hovered = false;
-                if (!state.pinned) {
-                    memory.classList.remove('active');
-                }
-            });
-            
-            memory.addEventListener('click', (e) => {
-                if (e.target === memory || e.target.className.includes('memory-content')) {
-                    state.pinned = !state.pinned;
-                    memory.classList.toggle('active', state.pinned);
-                }
-            });
-            
-            // Animation loop - THIS IS THE CRUCIAL FIX
-            function animate() {
-                if (!state.pinned) {
-                    // Update position
-                    state.yPos += state.hovered ? 0.2 : state.speed;
-                    
-                    // Apply new position
-                    memory.style.top = `${state.yPos}px`;
-                    memory.style.left = `${state.xPos}px`;
-                    
-                    // Fade out near bottom
-                    if (state.yPos > window.innerHeight * 0.7) {
-                        const opacity = 1 - (state.yPos - window.innerHeight * 0.7) / (window.innerHeight * 0.3);
-                        memory.style.opacity = opacity;
-                    }
-                    
-                    // Reset if off screen
-                    if (state.yPos > window.innerHeight + 50) {
-                        state.yPos = -displayText.length * 2;
-                        state.xPos = Math.random() * (window.innerWidth - 100);
-                        memory.style.opacity = '1';
-                    }
-                }
-                
-                animationFrameIds.push(requestAnimationFrame(animate));
-            }
-            
-            // Start the animation
-            animate();
-        }
-        
-        function navigateToMemory(memoryData, mode) {
-            const memoryInfo = {
-                text: typeof memoryData === 'string' ? memoryData : memoryData.text,
-                color: typeof memoryData === 'string' ? 'rgba(255, 245, 220, 0.9)' : memoryData.color,
-                mode: mode
-            };
-            
-            localStorage.setItem('currentMemory', JSON.stringify(memoryInfo));
-            window.location.href = 'interactives.html';
-        }
-        
-        function createRain() {
-            const rainDrops = [];
-            const rainCount = 60;
-            
-            function createDrop() {
-                const drop = document.createElement('div');
-                drop.className = 'rain';
-                
-                const left = Math.random() * window.innerWidth;
-                const height = 8 + Math.random() * 20;
-                const opacity = 0.3 + Math.random() * 0.5;
-                const duration = 0.5 + Math.random() * 1.5;
-                
-                drop.style.left = `${left}px`;
-                drop.style.height = `${height}px`;
-                drop.style.opacity = opacity;
-                drop.style.top = `-${height}px`;
-                drop.style.animationDuration = `${duration}s`;
-                
-                rainContainer.appendChild(drop);
-                rainDrops.push(drop);
-                
-                setTimeout(() => {
-                    if (drop.parentNode) {
-                        rainContainer.removeChild(drop);
-                        const index = rainDrops.indexOf(drop);
-                        if (index > -1) rainDrops.splice(index, 1);
-                    }
-                }, duration * 1000);
-            }
-            
-            // Initial rain
-            for (let i = 0; i < rainCount; i++) {
-                setTimeout(createDrop, i * 300);
-            }
-            
-            // Continuous rain
-            const rainInterval = setInterval(createDrop, 300);
-            
-            // Cleanup function
-            return () => {
-                clearInterval(rainInterval);
-                rainDrops.forEach(drop => {
-                    if (drop.parentNode) rainContainer.removeChild(drop);
-                });
-                rainDrops.length = 0;
-            };
-        }
-        
-        // Cleanup on exit
-        window.addEventListener('beforeunload', () => {
-            cleanupRain();
-            animationFrameIds.forEach(id => cancelAnimationFrame(id));
-        });
-    </script>
 </body>
 </html>

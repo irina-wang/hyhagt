@@ -12,10 +12,19 @@ let initWidth = 600;
 let initHeight = 450;
 // Sound variables
 let synth;
-let leftHandNotes = ['C3', 'D3', 'E3', 'F3', 'G3', 'A3', 'B3'];
-let rightHandNotes = ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4'];
+
+// D major
+let leftHandNotes = ['D4', 'E4', 'F#4', 'G4', 'A5', 'B5', 'C#5'];
+// D minor
+let rightHandNotes = ['D4', 'E4', 'F4', 'G4', 'A5', 'Bb5', 'C5'];
+
+
 let currentLeftNote = '';
 let currentRightNote = '';
+
+let mic, recorder, soundFile;
+let isRecording = false;
+let audioReady = false;
 
 function setup() {
   let canvas = createCanvas(initWidth, initHeight);
@@ -25,7 +34,6 @@ function setup() {
   video = createCapture(VIDEO);
   video.size(width, height);
   video.hide();
-  // video.parent('videoContainer');
   
   // Initialize handpose model
   handpose = ml5.handPose(video, { flipHorizontal: false }, modelReady);
@@ -36,7 +44,64 @@ function setup() {
   
   textSize(20);
   textAlign(CENTER, CENTER);
+
+  createButtons();
+  setupAudio();
+  }
+  
+function createButtons() {
+  startBttn = createButton("start").position(50, 100).size(100, 50).mousePressed(startRecording);
+  stopBttn = createButton("stop").position(150, 100).size(100, 50).mousePressed(stopRecording);
+  exportBttn = createButton("export").position(250, 100).size(100, 50).mousePressed(exportRecording);
 }
+
+function setupAudio() {
+  mic = new p5.AudioIn();
+  mic.start(() => console.log("🎤 Mic ready:", mic.enabled ? "✅ Enabled" : "❌ Disabled"));
+  recorder = new p5.SoundRecorder();
+  recorder.setInput(mic);
+  soundFile = new p5.SoundFile();
+}
+
+function startRecording() {
+  if (!isRecording) {
+    soundFile = new p5.SoundFile(); // Fresh file for new recording
+    recorder.record(soundFile);
+    isRecording = true;
+    audioReady = false;
+    console.log("⏺️ Recording started...");
+  }
+}
+
+function stopRecording() {
+  if (isRecording) {
+    recorder.stop();
+    isRecording = false;
+    
+    // SAFEST WAY TO CHECK DURATION (works in all p5.sound versions)
+    const checkBuffer = () => {
+      if (soundFile.buffer) {
+        const duration = soundFile.buffer.duration; // DIRECTLY access buffer.duration
+        console.log("⏹️ Recording stopped. Duration:", duration, "seconds");
+        audioReady = duration > 0;
+      } else {
+        setTimeout(checkBuffer, 50); // Keep checking until buffer loads
+      }
+    };
+    checkBuffer();
+  }
+}
+  
+  function exportRecording() {
+    if (!audioReady) {
+      console.warn("⚠️ Export failed: No valid recording!");
+      return;
+    }
+    
+    const filename = `recording_${hour()}-${minute()}-${second()}.wav`;
+    saveSound(soundFile, filename);
+    console.log(`💾 Exported: ${filename}`);
+  }
 
 function modelReady() {
   console.log("Handpose model ready!");
