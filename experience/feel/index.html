@@ -10,7 +10,7 @@
 
 <head>
   <meta charset="UTF-8">
-  <title>Feel the bee swarm</title>
+  <title>Feel it</title>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.6.0/p5.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.6.0/addons/p5.dom.min.js"></script>
@@ -50,19 +50,70 @@
       margin-top: 10px;
       color: #fff9e6;
     }
-    
-
+    #app {
+        display: flex;
+        gap: 20px;
+    }
+    #controls-container {
+        width: 150px;
+        padding: 10px;
+    }
   </style>
 </head>
 <body>
-  <div id="container">
-    <h1 id="title">Feel It</h1>
-    <p></p>
-    <div id="canvas-container"></div>
+    <div id="app">
+        <div id="controls-container">
+          <h1 id="memory-title">Feel It</h1>
+          <p id="memory-text"></p>
+          <button id="back-btn">Back to Memories</button>
+        </div>
+        <div id="canvas-container"></div>
+      </div>
     
-  </div>
-  <script src="bee_swarm.js"></script>
+    <script>
+        // Get the stored memory data
+        const memoryData = JSON.parse(localStorage.getItem('currentMemory'));
+        
+        // Create global variables for sketch.js
+        window.memory_text = memoryData ? memoryData.text : "Default memory text";
+        window.memory_color = memoryData ? memoryData.color : "rgba(255, 245, 220, 0.9)";
+        
+        // Display the memory (updated to match your previous working version)
+        if (memoryData) {
+            // For the new structure
+            document.getElementById('memory-text').textContent = memoryData.text;
+            document.getElementById('memory-text').style.color = memoryData.color;
+            
+            // For the old structure (if elements exist)
+            const memoryDisplay = document.getElementById('memoryDisplay');
+            if (memoryDisplay) {
+                memoryDisplay.style.borderLeftColor = memoryData.color;
+                memoryDisplay.innerHTML = `
+                    <h2 style="color: ${memoryData.color}">"${memoryData.text}"</h2>
+                `;
+            }
+        } else {
+            // Error handling for both versions
+            const fallbackElement = document.getElementById('memoryDisplay') || 
+                                   document.getElementById('memory-text');
+            if (fallbackElement) {
+                fallbackElement.innerHTML = `
+                    <p>No memory data found.</p>
+                    <p>Go back and select a memory first.</p>
+                `;
+            }
+        }
+        
+        // Back button functionality (works with either structure)
+        const backBtn = document.getElementById('back-btn');
+        if (backBtn) {
+            backBtn.addEventListener('click', () => {
+                window.history.back();
+            });
+        }
+    </script>
+    
+  <script src="word_wrap.js"></script>
 
 </body>
-
 </html>

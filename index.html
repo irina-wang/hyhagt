@@ -718,18 +718,6 @@
         }
     }
 
-    // function navigateToMemory(memoryData, mode) {
-    //     const memoryInfo = {
-    //         text: memoryData.text,
-    //         color: memoryData.color,
-    //         mode: mode
-    //     };
-        
-    //     localStorage.setItem('currentMemory', JSON.stringify(memoryInfo));
-    //     window.location.href = `experience/${mode}/index.html`;
-    //     // window.location.href = `experience/test/index.html`;
-
-    // }
     function navigateToMemory(memoryInfo, mode) {
         // Store in localStorage (only text and color needed)
         localStorage.setItem('currentMemory', JSON.stringify({
