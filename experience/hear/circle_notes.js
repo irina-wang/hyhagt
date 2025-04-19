@@ -13,6 +13,10 @@ let initHeight = 450;
 // Sound variables
 let synth;
 
+let audioID = '| Type your audio name...';
+let exportInput;
+
+
 // D major
 let leftHandNotes = ['D4', 'E4', 'F#4', 'G4', 'A5', 'B5', 'C#5'];
 // D minor
@@ -57,6 +61,11 @@ function createButtons() {
   startBttn.parent('controls-container');
   stopBttn = createButton("stop").mousePressed(stopRecording);
   stopBttn.parent('controls-container');
+
+    // Create text input for filename
+    exportInput = createInput(audioID);
+    exportInput.parent('controls-container');
+
   exportBttn = createButton("export").mousePressed(exportRecording);
   exportBttn.parent('controls-container');
 
@@ -99,13 +108,21 @@ function stopRecording() {
   }
 }
   
+
   function exportRecording() {
     if (!audioReady) {
       console.warn("⚠️ Export failed: No valid recording!");
       return;
     }
-    
-    const filename = `recording_${hour()}-${minute()}-${second()}.wav`;
+
+    let file = exportInput.value().trim();
+    if (file === '') {
+        file = audioID;
+      }
+    file = file.replace(/\..+$/, ''); // Remove any existing extension
+    const filename = `${file}.wav`
+
+    // const filename = `recording_${hour()}-${minute()}-${second()}.wav`;
     saveSound(soundFile, filename);
     console.log(`💾 Exported: ${filename}`);
   }

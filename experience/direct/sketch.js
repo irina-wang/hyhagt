@@ -3,7 +3,7 @@ let rings = [];
 let numRing = 5;
 let fonts = [];
 let isPaused = false;
-let imageID = 'Type your image name...';
+let imageID = '| Type your image name...';
 let exportInput;
 
 // This will use the global variable we set in the HTML
