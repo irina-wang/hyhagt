@@ -27,9 +27,12 @@ let isRecording = false;
 let audioReady = false;
 
 function setup() {
-  let canvas = createCanvas(initWidth, initHeight);
-  canvas.position(windowWidth/2-initWidth/2, windowHeight/2-initHeight/2);
+//   let canvas = createCanvas(initWidth, initHeight);
+//   canvas.position(windowWidth/2-initWidth/2, windowHeight/2-initHeight/2);
   
+let canvas = createCanvas(600*1.5, 450*1.5);
+canvas.parent('canvas-container'); // Put canvas in a div
+
   // Create video with proper DOM element
   video = createCapture(VIDEO);
   video.size(width, height);
@@ -50,9 +53,13 @@ function setup() {
   }
   
 function createButtons() {
-  startBttn = createButton("start").position(50, 100).size(100, 50).mousePressed(startRecording);
-  stopBttn = createButton("stop").position(150, 100).size(100, 50).mousePressed(stopRecording);
-  exportBttn = createButton("export").position(250, 100).size(100, 50).mousePressed(exportRecording);
+  startBttn = createButton("start").mousePressed(startRecording);
+  startBttn.parent('controls-container');
+  stopBttn = createButton("stop").mousePressed(stopRecording);
+  stopBttn.parent('controls-container');
+  exportBttn = createButton("export").mousePressed(exportRecording);
+  exportBttn.parent('controls-container');
+
 }
 
 function setupAudio() {

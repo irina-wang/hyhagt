@@ -21,7 +21,7 @@ function setup() {
 //   let canvas = createCanvas(initWidth, initHeight);
 //   canvas.position(windowWidth/2-initWidth/2, windowHeight/2-initHeight/2);
   
-  let canvas = createCanvas(591*1.5, 399*1.5);
+  let canvas = createCanvas(600*1.5, 450*1.5);
   canvas.parent('canvas-container'); // Put canvas in a div
 
   video = createCapture(VIDEO);
